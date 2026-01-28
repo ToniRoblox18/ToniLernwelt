@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LernBegleiter - Test Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 2rem;
+        }
+
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #0f172a;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .test-header {
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        #test-output {
+            background: #020617;
+            padding: 1rem;
+            border-radius: 8px;
+            min-height: 300px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .run-btn {
+            background: #3b82f6;
+            color: white;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .run-btn:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+        }
+    </style>
+    <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0"
+  }
+}
+</script>
+</head>
+
+<body>
+    <div class="test-container">
+        <div class="test-header">
+            <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">🧪 LernBegleiter Test Suite</h1>
+            <p style="color: #94a3b8;">Repository Pattern & Filter Tests</p>
+        </div>
+
+        <button class="run-btn" onclick="runTests()">▶ Tests ausführen</button>
+
+        <div id="test-output" style="margin-top: 2rem;">
+            <p style="color: #64748b;">Klicke auf "Tests ausführen", um die Test-Suite zu starten...</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { TaskModelTests } from './tests/TaskModel.test.ts';
+
+        window.runTests = async function () {
+            const output = document.getElementById('test-output');
+            output.innerHTML = '<p style="color: #3b82f6;">⏳ Tests werden ausgeführt...</p>';
+
+            // Capture console output
+            const logs = [];
+            const originalLog = console.log;
+            const originalGroup = console.group;
+            const originalGroupEnd = console.groupEnd;
+            const originalError = console.error;
+
+            console.log = (...args) => {
+                logs.push({ type: 'log', args });
+                originalLog(...args);
+            };
+            console.group = (...args) => {
+                logs.push({ type: 'group', args });
+                originalGroup(...args);
+            };
+            console.groupEnd = () => {
+                logs.push({ type: 'groupEnd' });
+                originalGroupEnd();
+            };
+            console.error = (...args) => {
+                logs.push({ type: 'error', args });
+                originalError(...args);
+            };
+
+            try {
+                await TaskModelTests.runAll();
+
+                // Restore console
+                console.log = originalLog;
+                console.group = originalGroup;
+                console.groupEnd = originalGroupEnd;
+                console.error = originalError;
+
+                // Render results
+                let html = '';
+                logs.forEach(log => {
+                    if (log.type === 'group') {
+                        html += `<div style="margin: 1rem 0; padding: 0.5rem; background: #1e293b; border-left: 3px solid #3b82f6;">${log.args.join(' ')}</div>`;
+                    } else if (log.type === 'log') {
+                        const text = log.args.join(' ');
+                        if (text.includes('✅')) {
+                            html += `<div style="color: #10b981; margin: 0.5rem 0;">✅ ${text.replace('✅', '')}</div>`;
+                        } else if (text.includes('🎉')) {
+                            html += `<div style="color: #10b981; font-weight: bold; margin: 1rem 0; padding: 0.75rem; background: #064e3b; border-radius: 6px;">${text}</div>`;
+                        } else {
+                            html += `<div style="color: #94a3b8; margin: 0.5rem 0;">${text}</div>`;
+                        }
+                    } else if (log.type === 'error') {
+                        html += `<div style="color: #ef4444; margin: 0.5rem 0;">❌ ${log.args.join(' ')}</div>`;
+                    }
+                });
+
+                output.innerHTML = html || '<p style="color: #10b981;">✅ Alle Tests erfolgreich!</p>';
+
+            } catch (error) {
+                console.log = originalLog;
+                console.group = originalGroup;
+                console.groupEnd = originalGroupEnd;
+                console.error = originalError;
+
+                output.innerHTML = `<div style="color: #ef4444;">❌ Fehler beim Ausführen der Tests:<br><br>${error.message}</div>`;
+            }
+        };
+    </script>
+</body>
+
+</html>
