@@ -37,6 +37,7 @@ export interface TaskSolution {
   teacherSection: TeacherSection;
   imagePreview?: string;
   fileFingerprint?: string;
+  displayId?: string; // e.g. K2_DEU_1
   timestamp: number;
 }
 

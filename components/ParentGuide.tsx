@@ -54,9 +54,9 @@ export const ParentGuide: React.FC<ParentGuideProps> = ({ solution, language }) 
       </section>
 
       <section className="space-y-6 pt-4 border-t border-slate-100 dark:border-slate-800">
-        <div className="flex items-center gap-2 text-emerald-600"><TableIcon className="w-5 h-5" /><h4 className="text-[10px] font-bold uppercase tracking-widest">Lösungstabellen / Bảng lời giải</h4></div>
-        <SolutionTable title="Lösungen (Deutsch)" headers={['Nr.', 'Aufgabe', 'Lösung']} rows={solution.solutionTable} />
-        <SolutionTable title="Lời giải (Tiếng Việt)" headers={['Số', 'Nhiệm vụ', 'Lời giải']} rows={solution.solutionTable} isVi />
+        <div className="flex items-center gap-2 text-emerald-600"><TableIcon className="w-5 h-5" /><h4 className="text-[10px] font-bold uppercase tracking-widest">Lösung / Lời giải</h4></div>
+        <SolutionTable title="Lösung" headers={['Nr.', 'Aufgabe', 'Lösung']} rows={solution.solutionTable} />
+        <SolutionTable title="Lời giải" headers={['Số', 'Nhiệm vụ', 'Lời giải']} rows={solution.solutionTable} isVi />
       </section>
     </div>
   );

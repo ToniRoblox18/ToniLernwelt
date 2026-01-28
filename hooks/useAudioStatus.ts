@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { TaskSolution } from '../types';
 import { AudioCacheService } from '../services/audioCache';
-import { speakText, getSharedAudioContext } from '../services/geminiService';
+import { GeminiAudioService, getSharedAudioContext } from '../services/geminiService';
 
 export const useAudioStatus = (solutions: TaskSolution[]) => {
   const [statuses, setStatuses] = useState<Record<string, string>>({});
@@ -23,7 +23,7 @@ export const useAudioStatus = (solutions: TaskSolution[]) => {
     setStatuses(p => ({ ...p, [sol.id]: 'loading' }));
     try {
       const text = `${sol.teacherSection.learningGoal_de}. ${sol.teacherSection.studentSteps_de.join(". ")}. ${sol.finalSolution_de}`;
-      await speakText(text, sol.id);
+      await GeminiAudioService.speakText(text, sol.id);
       setStatuses(p => ({ ...p, [sol.id]: 'ready' }));
     } catch {
       setStatuses(p => ({ ...p, [sol.id]: 'error' }));

@@ -24,11 +24,11 @@ export const EditorialDashboard: React.FC<EditorialDashboardProps> = ({ solution
       </div>
       <div className="divide-y divide-slate-100 dark:divide-slate-800">
         {solutions.map(sol => (
-          <StatusRow 
-            key={sol.id} 
-            sol={sol} 
-            status={statuses[sol.id]} 
-            onGenerate={() => generate(sol)} 
+          <StatusRow
+            key={sol.id}
+            sol={sol}
+            status={statuses[sol.id]}
+            onGenerate={() => generate(sol)}
             onDelete={() => onDelete(sol.id)}
           />
         ))}
@@ -42,6 +42,11 @@ const StatusRow = ({ sol, status, onGenerate, onDelete }: any) => (
     <div className="flex items-center gap-4 flex-1">
       <div className="relative group">
         <img src={sol.imagePreview} className="w-12 h-16 object-cover rounded-lg border shadow-sm transition-transform group-hover:scale-105" alt="" />
+        {sol.displayId && (
+          <div className="absolute top-0.5 right-0.5 bg-black/60 backdrop-blur-sm text-white text-[8px] font-mono px-1 rounded shadow-sm">
+            {sol.displayId}
+          </div>
+        )}
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
           <button onClick={onDelete} className="p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg">
             <Trash2 className="w-3.5 h-3.5" />

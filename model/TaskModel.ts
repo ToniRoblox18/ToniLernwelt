@@ -21,6 +21,49 @@ export class TaskModel {
   }
 
   /**
+   * Generiert eine fachliche Unique ID (z.B. K3_MAT_5)
+   */
+  private static generateId(task: TaskSolution, allTasks: TaskSolution[]): string {
+    // 1. Grade (Klasse 2 -> K2)
+    const gradeNum = task.grade.match(/\d+/)?.[0] || '0';
+    const gradeCode = `K${gradeNum}`;
+
+    // 2. Subject (Mathematik -> MAT)
+    const subjectMap: Record<string, string> = {
+      'Deutsch': 'DEU', 'Mathematik': 'MAT', 'Sachkunde': 'SAC',
+      'Englisch': 'ENG', 'Kunst': 'KUN', 'Musik': 'MUS',
+      'Sport': 'SPO', 'Religion': 'REL', 'Ethik': 'ETH',
+      'Physik': 'PHY', 'Chemie': 'CHE', 'Biologie': 'BIO',
+      'Geschichte': 'GES', 'Geografie': 'GEO'
+    };
+    // Fuzzy search or substring check could be added, but simple map for now
+    let subjectCode = 'SON'; // Sonstiges
+    for (const [key, val] of Object.entries(subjectMap)) {
+      if (task.subject && task.subject.includes(key)) {
+        subjectCode = val;
+        break;
+      }
+    }
+
+    // 3. Count (How many Kx_SUB exist?)
+    // Filter existing tasks that match this pattern to find the max number
+    const prefix = `${gradeCode}_${subjectCode}`;
+    const existing = allTasks.filter(t => t.displayId && t.displayId.startsWith(prefix));
+
+    // Find max number
+    let maxNum = 0;
+    existing.forEach(t => {
+      const parts = t.displayId?.split('_');
+      if (parts && parts.length === 3) {
+        const num = parseInt(parts[2], 10);
+        if (!isNaN(num) && num > maxNum) maxNum = num;
+      }
+    });
+
+    return `${prefix}_${maxNum + 1}`;
+  }
+
+  /**
    * Fügt neue Aufgaben hinzu (mit Deduplizierung via Fingerprint)
    */
   static async addTasks(newTasks: TaskSolution[]): Promise<TaskSolution[]> {
@@ -28,11 +71,20 @@ export class TaskModel {
 
     const validTasks: TaskSolution[] = [];
 
+    // Working copoy of current tasks to count correctly within this batch
+    const currentTasks = [...this.tasks];
+
     for (const task of newTasks) {
       // Skip duplicates based on fingerprint
       if (task.fileFingerprint && await this.repo!.exists(task.fileFingerprint)) {
         console.warn(`Task mit Fingerprint ${task.fileFingerprint} existiert bereits, übersprungen.`);
         continue;
+      }
+
+      // Generate ID if missing
+      if (!task.displayId) {
+        task.displayId = this.generateId(task, currentTasks);
+        currentTasks.push(task); // Add to temp list so next one counts up correctly
       }
 
       await this.repo!.save(task);

@@ -27,9 +27,9 @@ export const EditorialView: React.FC<EditorialViewProps> = ({ solutions, onUploa
             <p className="text-slate-500 dark:text-slate-400 text-sm">Verwalte deine Mediathek und bereite die Lernreise vor.</p>
           </div>
         </div>
-        <button 
-          onClick={onStartStage} 
-          disabled={solutions.length === 0} 
+        <button
+          onClick={onStartStage}
+          disabled={solutions.length === 0}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-blue-500/20 disabled:opacity-50 transition-all hover:scale-105"
         >
           <PlayCircle className="w-5 h-5" /> Stage starten
@@ -37,11 +37,11 @@ export const EditorialView: React.FC<EditorialViewProps> = ({ solutions, onUploa
       </header>
 
       <UploadZone onFilesSelected={onUpload} />
-      
+
       {isBusy && (
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-blue-100 dark:border-blue-900/30 shadow-xl animate-pulse">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-bold text-blue-600">KI analysiert Aufgaben...</span>
+            <span className="text-sm font-bold text-orange-500">KI analysiert Aufgaben...</span>
             <span className="text-sm font-bold">{Math.round(progress)}%</span>
           </div>
           <div className="flex-1 h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">

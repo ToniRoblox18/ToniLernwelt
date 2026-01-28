@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { TaskModel } from '../model/TaskModel';
-import { analyzeTaskImage } from '../services/geminiService';
+import { GeminiAnalysisService } from '../services/geminiService';
 import { TaskSolution } from '../types';
 
 export const useFileProcessing = (onSuccess: (tasks: TaskSolution[]) => void, onError: (msg: string) => void) => {
@@ -28,7 +28,7 @@ export const useFileProcessing = (onSuccess: (tasks: TaskSolution[]) => void, on
         const file = filesToProcess[i];
         const { base64, mimeType } = await fileToData(file);
 
-        const sol = await analyzeTaskImage(base64, TaskModel.getAll().length + 1, mimeType);
+        const sol = await GeminiAnalysisService.analyzeTaskImage(base64, TaskModel.getAll().length + 1, mimeType);
         const enriched = { ...sol, fileFingerprint: getFingerprint(file) };
 
         const updated = await TaskModel.addTasks([enriched]);

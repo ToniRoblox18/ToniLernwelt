@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { TaskSolution } from '../types';
-import { Compass, Footprints, CheckCircle2, Sparkles, Volume2, VolumeX } from 'lucide-react';
+import { Compass, Footprints, CheckCircle2, Sparkles, Volume2, VolumeX, ChevronDown } from 'lucide-react';
 
 interface StudentGuideProps {
   solution: TaskSolution;
@@ -10,6 +10,8 @@ interface StudentGuideProps {
 }
 
 export const StudentGuide: React.FC<StudentGuideProps> = ({ solution, isSpeaking, onToggleVoice }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
       <div className="flex items-start gap-4 bg-blue-50 dark:bg-blue-900/10 p-5 rounded-3xl border border-blue-100 dark:border-blue-900/30 relative overflow-hidden">
@@ -37,17 +39,51 @@ export const StudentGuide: React.FC<StudentGuideProps> = ({ solution, isSpeaking
         <div className="space-y-2">
           {solution.teacherSection.studentSteps_de.map((s, i) => (
             <div key={i} className="flex gap-3 bg-slate-50 dark:bg-slate-800/40 p-3 rounded-2xl text-sm border border-slate-100 dark:border-slate-800">
-              <span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-[10px] shrink-0">{i+1}</span>
+              <span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-[10px] shrink-0">{i + 1}</span>
               <p className="text-slate-700 dark:text-slate-300">{s}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-3xl p-5 space-y-3">
-        <div className="flex items-center gap-2 text-emerald-700"><CheckCircle2 className="w-4 h-4" /><h4 className="text-[10px] font-bold uppercase tracking-widest">Die Lösung</h4></div>
-        <p className="text-sm text-emerald-900 dark:text-emerald-200/80 leading-relaxed">{solution.teacherSection.explanation_de}</p>
-        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-emerald-200 dark:border-emerald-800 text-center font-bold text-emerald-600">{solution.finalSolution_de}</div>
+      <section className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-3xl overflow-hidden transition-all">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full flex items-center justify-between p-5 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/20 transition-colors"
+        >
+          <div className="flex items-center gap-2 text-emerald-700">
+            <CheckCircle2 className="w-4 h-4" />
+            <h4 className="text-[10px] font-bold uppercase tracking-widest">Die Lösung</h4>
+          </div>
+          <div className={`p-1 bg-white dark:bg-slate-800 rounded-full text-emerald-600 shadow-sm transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
+            <ChevronDown className="w-4 h-4" />
+          </div>
+        </button>
+
+        {isOpen && (
+          <div className="px-5 pb-5 animate-in slide-in-from-top-2 duration-300">
+            <p className="text-sm text-emerald-900 dark:text-emerald-200/80 leading-relaxed mb-4">Die richtige Lösung lautet:</p>
+
+            <div className="overflow-hidden rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 border-b border-emerald-100 dark:border-emerald-800">
+                  <tr>
+                    <th className="px-4 py-2 font-bold w-16">Nr.</th>
+                    <th className="px-4 py-2 font-bold">Lösung</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-emerald-100 dark:divide-slate-800">
+                  {solution.solutionTable.map((row, i) => (
+                    <tr key={i} className="hover:bg-emerald-50/50 dark:hover:bg-slate-800/50">
+                      <td className="px-4 py-2 font-mono text-emerald-600">{row.taskNumber}</td>
+                      <td className="px-4 py-2 text-slate-700 dark:text-slate-300 font-normal">{row.value_de}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );
