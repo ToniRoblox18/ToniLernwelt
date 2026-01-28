@@ -27,22 +27,22 @@ export const useFileProcessing = (onSuccess: (tasks: TaskSolution[]) => void, on
       try {
         const file = filesToProcess[i];
         const { base64, mimeType } = await fileToData(file);
-        
+
         const sol = await analyzeTaskImage(base64, TaskModel.getAll().length + 1, mimeType);
         const enriched = { ...sol, fileFingerprint: getFingerprint(file) };
-        
+
         const updated = await TaskModel.addTasks([enriched]);
         onSuccess(updated);
         setProgress(((i + 1) / filesToProcess.length) * 100);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Processing error:", err);
-        onError("Fehler bei der Analyse.");
+        onError(`Fehler bei der Analyse: ${err.message || 'Unbekannter Fehler'}`);
       }
     }
     setIsProcessing(false);
   };
 
-  const fileToData = (file: File): Promise<{base64: string, mimeType: string}> => 
+  const fileToData = (file: File): Promise<{ base64: string, mimeType: string }> =>
     new Promise(r => {
       const rd = new FileReader();
       rd.onload = () => r({

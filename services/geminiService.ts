@@ -3,7 +3,24 @@ import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { TaskSolution } from "../types";
 import { AudioCacheService } from "./audioCache";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+let aiInstance: GoogleGenAI | null = null;
+const DEFAULT_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+function getAI() {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  if (!apiKey || apiKey === 'your_api_key_here') {
+    throw new Error("GEMINI_API_KEY fehlt! Bitte trage deinen API-Key in die .env Datei ein.");
+  }
+  if (!apiKey.startsWith('AIza')) {
+    throw new Error("Der API-Key in der .env scheint ungültig zu sein (er muss mit 'AIza' beginnen). Bitte prüfe den Key unter https://aistudio.google.com/apikey");
+  }
+  if (!aiInstance) {
+    aiInstance = new GoogleGenAI({
+      apiKey,
+      apiVersion: 'v1beta'
+    });
+  }
+  return aiInstance;
+}
 
 let sharedAudioCtx: AudioContext | null = null;
 export function getSharedAudioContext() {
@@ -61,27 +78,54 @@ const RESPONSE_SCHEMA = {
 };
 
 export async function analyzeTaskImage(base64Data: string, pageNumber: number, mimeType: string = "image/jpeg"): Promise<TaskSolution> {
-  const prompt = `Analysiere diese Buchseite. Bestimme Klasse, Fach und Thema. Erstelle Hilfen für Eltern (DE/VI) und Lehrerin-Erklärung (DE).`;
-  
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: { 
-      parts: [
-        { inlineData: { mimeType, data: base64Data } }, 
-        { text: prompt }
-      ] 
-    },
-    config: { responseMimeType: "application/json", responseSchema: RESPONSE_SCHEMA }
-  });
-  
-  const data = JSON.parse(response.text);
-  return { 
-    ...data, 
-    id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, 
-    pageNumber, 
-    timestamp: Date.now(),
-    imagePreview: `data:${mimeType};base64,${base64Data}` 
-  };
+  const prompt = `Analysiere diese Buchseite. Bestimme Klasse, Fach und Thema. Erstelle Hilfen für Eltern (DE/VI) und Lehrerin-Erklärung (DE).
+  WICHTIG: Antworte AUSSCHLIESSLICH mit einem validen JSON-Objekt, das dem Schema entspricht. Keine Erklärungen vor oder nach dem JSON.`;
+
+  try {
+    console.log(`Starte Analyse für Seite ${pageNumber} (${mimeType})...`);
+    const result = await getAI().models.generateContent({
+      model: DEFAULT_MODEL,
+      contents: [
+        {
+          parts: [
+            { inlineData: { mimeType, data: base64Data } },
+            { text: prompt }
+          ]
+        }
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: RESPONSE_SCHEMA
+      }
+    });
+
+    // In many SDK versions, result.text is a getter for the first candidate's text
+    let text = result.text;
+
+    // Fallback if structure is different
+    if (!text && (result as any).response) {
+      text = await (result as any).response.text();
+    }
+
+    if (!text) throw new Error("Keine Text-Antwort von Gemini erhalten.");
+
+    // Clean text from markdown code blocks if present
+    const cleanText = text.replace(/^```json\n?/, "").replace(/\n?```$/, "").trim();
+
+    const data = JSON.parse(cleanText);
+    console.log("Analyse erfolgreich:", data.taskTitle);
+
+    return {
+      ...data,
+      id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      pageNumber,
+      timestamp: Date.now(),
+      imagePreview: `data:${mimeType};base64,${base64Data}`
+    };
+  } catch (err: any) {
+    console.error("Gemini Analyse Fehler Details:", err);
+    throw new Error(err.message || "Unbekannter Fehler bei der KI-Analyse");
+  }
 }
 
 export async function speakText(text: string, cacheKey: string): Promise<AudioBuffer> {
@@ -89,30 +133,31 @@ export async function speakText(text: string, cacheKey: string): Promise<AudioBu
   const cached = await AudioCacheService.get(cacheKey, ctx);
   if (cached) return cached;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash-preview-tts",
+  console.log(`Generiere Audio für: "${text.substring(0, 30)}..."`);
+  const response = await getAI().models.generateContent({
+    model: DEFAULT_MODEL,
     contents: [{ parts: [{ text: `Sprich als freundliche Lehrerin: ${text}` }] }],
-    config: { 
-      responseModalities: [Modality.AUDIO], 
-      speechConfig: { 
-        voiceConfig: { 
-          prebuiltVoiceConfig: { voiceName: 'Kore' } 
-        } 
-      } 
+    config: {
+      responseModalities: [Modality.AUDIO],
+      speechConfig: {
+        voiceConfig: {
+          prebuiltVoiceConfig: { voiceName: 'Puck' }
+        }
+      }
     }
   });
 
   const base64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
   if (!base64) throw new Error("Audio generation failed");
-  
+
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  
+
   const dataInt16 = new Int16Array(bytes.buffer);
   const buffer = ctx.createBuffer(1, dataInt16.length, 24000);
   buffer.getChannelData(0).set(Array.from(dataInt16).map(v => v / 32768.0));
-  
+
   await AudioCacheService.set(cacheKey, buffer);
   return buffer;
 }

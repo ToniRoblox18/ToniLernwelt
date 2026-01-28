@@ -45,14 +45,16 @@ const App: React.FC = () => {
     localStorage.setItem('mode', state.mode);
   }, [state.darkMode, state.mode]);
 
+  // Gefilterte Lösungen berechnen
+  const filteredSolutions = TaskModel.filterLocal(state.filters);
   const current = state.solutions.find(s => s.id === state.currentSolutionId);
 
   const handleDeleteTask = async (id: string) => {
     const updated = await TaskModel.removeTask(id);
-    setState(p => ({ 
-      ...p, 
-      solutions: updated, 
-      currentSolutionId: p.currentSolutionId === id ? null : p.currentSolutionId 
+    setState(p => ({
+      ...p,
+      solutions: updated,
+      currentSolutionId: p.currentSolutionId === id ? null : p.currentSolutionId
     }));
     notify("Aufgabe erfolgreich gelöscht", "success");
   };
@@ -67,31 +69,35 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans">
       <input type="file" ref={fileInputRef} onChange={(e) => e.target.files && processFiles(e.target.files)} multiple accept="image/*,application/pdf" className="hidden" />
-      <Sidebar 
-        solutions={state.solutions} currentId={state.currentSolutionId} 
-        darkMode={state.darkMode} mode={state.mode}
+      <Sidebar
+        solutions={filteredSolutions}
+        currentId={state.currentSolutionId}
+        darkMode={state.darkMode}
+        mode={state.mode}
+        filters={state.filters}
         onSelect={id => setState(p => ({ ...p, currentSolutionId: id }))}
         onUploadClick={() => fileInputRef.current?.click()}
         onToggleDarkMode={() => setState(p => ({ ...p, darkMode: !p.darkMode }))}
         onToggleMode={() => setState(p => ({ ...p, mode: p.mode === 'editorial' ? 'stage' : 'editorial' }))}
         onClearAll={handleClearAll}
+        onFilterChange={filters => setState(p => ({ ...p, filters }))}
       />
-      
+
       <main className="flex-1 relative overflow-hidden flex flex-col">
         {state.notification && <Toast notify={state.notification} />}
-        
+
         {state.mode === 'editorial' ? (
-          <EditorialView 
-            solutions={state.solutions} 
-            onUpload={processFiles} 
+          <EditorialView
+            solutions={filteredSolutions}
+            onUpload={processFiles}
             onDelete={handleDeleteTask}
-            isBusy={isProcessing} 
-            progress={progress} 
-            onStartStage={() => setState(p => ({ ...p, mode: 'stage' }))} 
+            isBusy={isProcessing}
+            progress={progress}
+            onStartStage={() => setState(p => ({ ...p, mode: 'stage' }))}
           />
         ) : (
-          current ? <SolutionView solution={current} language={state.uiLanguage} onToggleLanguage={() => setState(p => ({ ...p, uiLanguage: p.uiLanguage === 'de' ? 'vi' : 'de' }))} /> 
-          : <EmptyState onBack={() => setState(p => ({ ...p, mode: 'editorial' }))} />
+          current ? <SolutionView solution={current} language={state.uiLanguage} onToggleLanguage={() => setState(p => ({ ...p, uiLanguage: p.uiLanguage === 'de' ? 'vi' : 'de' }))} />
+            : <EmptyState onBack={() => setState(p => ({ ...p, mode: 'editorial' }))} />
         )}
       </main>
     </div>
@@ -99,9 +105,8 @@ const App: React.FC = () => {
 };
 
 const Toast = ({ notify }: any) => (
-  <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-xl animate-in slide-in-from-top-4 border flex items-center gap-2 ${
-    notify.type === 'error' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'
-  }`}>
+  <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-xl animate-in slide-in-from-top-4 border flex items-center gap-2 ${notify.type === 'error' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'
+    }`}>
     {notify.type === 'success' && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
     <span className="font-bold text-sm">{notify.message}</span>
   </div>

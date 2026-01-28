@@ -1,20 +1,26 @@
-
 import React, { useState, useEffect } from 'react';
 import { TaskSolution, AppMode } from '../types';
 import { AudioCacheService } from '../services/audioCache';
 import { getSharedAudioContext } from '../services/geminiService';
-import { BookOpen, ChevronRight, FileText, Plus, Moon, Sun, Trash2, Volume2, Settings, ShieldCheck, Filter, SearchX } from 'lucide-react';
+import { TaskModel } from '../model/TaskModel';
+import {
+  BookOpen, ChevronRight, FileText, Plus, Moon, Sun,
+  Trash2, Volume2, Settings, ShieldCheck, Filter,
+  SearchX, XCircle, Library
+} from 'lucide-react';
 
 interface SidebarProps {
   solutions: TaskSolution[];
   currentId: string | null;
   darkMode: boolean;
   mode: AppMode;
+  filters: { grade: string | null; subject: string | null };
   onSelect: (id: string) => void;
   onUploadClick: () => void;
   onToggleDarkMode: () => void;
   onToggleMode: () => void;
   onClearAll: () => void;
+  onFilterChange: (filters: { grade: string | null; subject: string | null }) => void;
 }
 
 const TaskItem: React.FC<{ task: TaskSolution; isActive: boolean; onSelect: (id: string) => void; mode: AppMode }> = ({ task, isActive, onSelect, mode }) => {
@@ -32,11 +38,10 @@ const TaskItem: React.FC<{ task: TaskSolution; isActive: boolean; onSelect: (id:
   return (
     <button
       onClick={() => onSelect(task.id)}
-      className={`w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all ${
-        isActive
+      className={`w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all ${isActive
           ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 scale-[1.02]'
           : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-      }`}
+        }`}
     >
       <div className={`p-2 rounded-lg relative ${isActive ? 'bg-blue-500' : 'bg-slate-100 dark:bg-slate-800'}`}>
         <FileText className="w-4 h-4" />
@@ -49,8 +54,8 @@ const TaskItem: React.FC<{ task: TaskSolution; isActive: boolean; onSelect: (id:
       <div className="flex-1 min-w-0">
         <p className="text-xs font-bold truncate leading-tight">{task.taskTitle}</p>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className={`text-[9px] px-1 rounded uppercase font-bold ${isActive ? 'bg-blue-400 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>{task.grade}</span>
-          <span className={`text-[9px] truncate ${isActive ? 'text-blue-100' : 'text-slate-400'}`}>{task.subject}</span>
+          <span className={`text-[9px] px-1 rounded uppercase font-bold ${isActive ? 'bg-blue-400 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>{task.grade || 'Klasse ?'}</span>
+          <span className={`text-[9px] truncate ${isActive ? 'text-blue-100' : 'text-slate-400'}`}>{task.subject || 'Fach ?'}</span>
         </div>
       </div>
       {isActive && <ChevronRight className="w-3 h-3 text-white/50" />}
@@ -58,23 +63,33 @@ const TaskItem: React.FC<{ task: TaskSolution; isActive: boolean; onSelect: (id:
   );
 };
 
-export const Sidebar: React.FC<SidebarProps> = ({ solutions, currentId, darkMode, mode, onSelect, onUploadClick, onToggleDarkMode, onToggleMode, onClearAll }) => {
-  const [gradeFilter, setGradeFilter] = useState<string>('all');
-  const [subjectFilter, setSubjectFilter] = useState<string>('all');
+export const Sidebar: React.FC<SidebarProps> = ({
+  solutions, currentId, darkMode, mode, filters,
+  onSelect, onUploadClick, onToggleDarkMode, onToggleMode, onClearAll, onFilterChange
+}) => {
 
-  const grades = Array.from(new Set(solutions.map(s => s.grade))).sort();
-  const subjects = Array.from(new Set(solutions.map(s => s.subject))).sort();
+  const grades = TaskModel.getUniqueGrades();
+  const subjects = TaskModel.getUniqueSubjects(filters.grade || undefined);
 
-  const filteredSolutions = solutions.filter(s => 
-    (gradeFilter === 'all' || s.grade === gradeFilter) && 
-    (subjectFilter === 'all' || s.subject === subjectFilter)
-  );
+  const handleGradeChange = (val: string) => {
+    onFilterChange({ ...filters, grade: val === 'all' ? null : val, subject: null });
+  };
+
+  const handleSubjectChange = (val: string) => {
+    onFilterChange({ ...filters, subject: val === 'all' ? null : val });
+  };
+
+  const clearFilters = () => {
+    onFilterChange({ grade: null, subject: null });
+  };
+
+  const hasActiveFilters = filters.grade || filters.subject;
 
   return (
     <div className="w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 h-screen flex flex-col shadow-sm transition-colors z-20">
       <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
         <div className={`p-2 rounded-lg shadow-md transition-colors ${mode === 'editorial' ? 'bg-slate-100 dark:bg-slate-800 text-slate-500' : 'bg-blue-600 text-white shadow-blue-500/20'}`}>
-          {mode === 'editorial' ? <Settings className="w-6 h-6" /> : <BookOpen className="w-6 h-6" />}
+          {mode === 'editorial' ? <Settings className="w-6 h-6" /> : <Library className="w-6 h-6" />}
         </div>
         <div>
           <h1 className="font-bold text-slate-800 dark:text-white text-lg leading-tight font-display tracking-tight">LernBegleiter</h1>
@@ -84,67 +99,88 @@ export const Sidebar: React.FC<SidebarProps> = ({ solutions, currentId, darkMode
         </div>
       </div>
 
-      <div className="px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 space-y-2">
-        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase mb-1">
-          <Filter className="w-3 h-3" /> Filterung
+      <div className="px-4 py-4 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 space-y-3">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase">
+            <Filter className="w-3 h-3 text-blue-500" /> Filter-Bar
+          </div>
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md transition-colors"
+              title="Filter zurücksetzen"
+            >
+              <XCircle className="w-3 h-3 text-slate-400 hover:text-red-500" />
+            </button>
+          )}
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <select 
-            value={gradeFilter} onChange={e => setGradeFilter(e.target.value)}
-            className="text-[10px] font-bold p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
-          >
-            <option value="all">Klassen</option>
-            {grades.map(g => <option key={g} value={g}>{g}</option>)}
-          </select>
-          <select 
-            value={subjectFilter} onChange={e => setSubjectFilter(e.target.value)}
-            className="text-[10px] font-bold p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
-          >
-            <option value="all">Fächer</option>
-            {subjects.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+
+        <div className="space-y-2">
+          <div className="relative">
+            <select
+              value={filters.grade || 'all'}
+              onChange={e => handleGradeChange(e.target.value)}
+              className="w-full text-xs font-bold p-2.5 pl-3 pr-8 appearance-none rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer shadow-sm"
+            >
+              <option value="all">Alle Klassen</option>
+              {grades.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+            <ChevronRight className="w-3 h-3 absolute right-3 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 pointer-events-none" />
+          </div>
+
+          <div className="relative">
+            <select
+              value={filters.subject || 'all'}
+              onChange={e => handleSubjectChange(e.target.value)}
+              disabled={!filters.grade && grades.length > 0}
+              className={`w-full text-xs font-bold p-2.5 pl-3 pr-8 appearance-none rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer shadow-sm ${!filters.grade && grades.length > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <option value="all">Alle Fächer</option>
+              {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <ChevronRight className="w-3 h-3 absolute right-3 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 pointer-events-none" />
+          </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
         {mode === 'editorial' && (
-          <button onClick={onUploadClick} className="w-full flex items-center justify-center gap-3 p-3 rounded-xl border-2 border-dashed border-blue-200 dark:border-slate-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all mb-4 group">
+          <button onClick={onUploadClick} className="w-full flex items-center justify-center gap-3 p-3 rounded-xl border-2 border-dashed border-blue-200 dark:border-slate-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all mb-4 group ring-offset-white dark:ring-offset-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
             <Plus className="w-4 h-4 group-hover:scale-110 transition-transform" /> <span className="font-bold text-sm">Aufgabe laden</span>
           </button>
         )}
-        
-        <div className="space-y-1.5">
-          {filteredSolutions.length > 0 ? (
-            filteredSolutions.map((task) => (
+
+        <div className="space-y-1.5 pt-1">
+          {solutions.length > 0 ? (
+            solutions.map((task) => (
               <TaskItem key={task.id} task={task} isActive={currentId === task.id} onSelect={onSelect} mode={mode} />
             ))
           ) : (
             <div className="py-12 text-center animate-in fade-in zoom-in-95">
-              <SearchX className="w-8 h-8 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
-              <p className="text-[10px] font-bold text-slate-400 uppercase">Keine Aufgaben gefunden</p>
+              <SearchX className="w-8 h-8 text-slate-200 dark:text-slate-800 mx-auto mb-3" />
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Keine Übereinstimmung</p>
             </div>
           )}
         </div>
       </div>
 
-      <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 space-y-3">
-        <button 
-          onClick={onToggleMode} 
-          className={`w-full flex items-center justify-center gap-3 p-3 rounded-xl border shadow-sm transition-all font-bold text-sm hover:scale-[1.02] active:scale-95 ${
-            mode === 'editorial' 
-              ? 'bg-blue-600 text-white border-blue-500 shadow-blue-500/20' 
-              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'
-          }`}
+      <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-3">
+        <button
+          onClick={onToggleMode}
+          className={`w-full flex items-center justify-center gap-3 p-3 rounded-xl border shadow-sm transition-all font-bold text-sm hover:translate-y-[-1px] active:translate-y-[0px] ${mode === 'editorial'
+              ? 'bg-blue-600 text-white border-blue-500 shadow-blue-500/20 hover:bg-blue-700'
+              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'
+            }`}
         >
           {mode === 'editorial' ? <ShieldCheck className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
           <span>{mode === 'editorial' ? 'Zum Lern-Modus' : 'Zur Redaktion'}</span>
         </button>
         <div className="flex gap-2">
-          <button onClick={onToggleDarkMode} title="Design umschalten" className="flex-1 p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex justify-center hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+          <button onClick={onToggleDarkMode} title="Design umschalten" className="flex-1 p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex justify-center hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
             {darkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-slate-500" />}
           </button>
           {mode === 'editorial' && (
-            <button onClick={onClearAll} title="Alle Daten löschen" className="flex-1 p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex justify-center hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-500 transition-all">
+            <button onClick={onClearAll} title="Alle Daten löschen" className="flex-1 p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex justify-center hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-500 transition-all shadow-sm">
               <Trash2 className="w-4 h-4" />
             </button>
           )}

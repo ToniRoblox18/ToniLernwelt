@@ -1,12 +1,12 @@
 
-import { DBService } from './dbService';
+import { TaskModel } from '../model/TaskModel';
 
 export class AudioCacheService {
   static async set(key: string, buffer: AudioBuffer): Promise<void> {
-    return DBService.saveAudio(key, buffer);
+    return TaskModel.saveAudio(key, buffer);
   }
 
   static async get(key: string, ctx: AudioContext): Promise<AudioBuffer | null> {
-    return DBService.getAudio(key, ctx);
+    return TaskModel.getAudio(key, ctx);
   }
 }
