@@ -1,0 +1,7 @@
+{
+  "name": "LernBegleiter: Lesebuch 2. Klasse",
+  "description": "Eine interaktive Unterstützung für Eltern, um ihren Kindern bei den Aufgaben des Arbeitsheftes Lesebuch (2. Klasse) zu helfen – mit Schritt-für-Schritt-Anleitungen auf Deutsch und Vietnamesisch.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
