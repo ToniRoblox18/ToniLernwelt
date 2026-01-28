@@ -12,11 +12,11 @@ const App: React.FC = () => {
   const [state, setState] = useState<AppState>(() => ({
     solutions: [],
     currentSolutionId: null,
-    uiLanguage: 'de',
+    uiLanguage: 'vi',
     isProcessing: false,
     progress: 0,
     darkMode: localStorage.getItem('theme') !== 'light',
-    mode: (localStorage.getItem('mode') as AppMode) || 'editorial',
+    mode: (localStorage.getItem('mode') as AppMode) || 'stage',
     notification: null,
     filters: { grade: null, subject: null }
   }));

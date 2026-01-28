@@ -4,9 +4,10 @@ import { TaskSolution } from "../types";
 import { AudioCacheService } from "./audioCache";
 
 let aiInstance: GoogleGenAI | null = null;
-const DEFAULT_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const DEFAULT_MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-3-flash-preview";
+const AUDIO_MODEL = import.meta.env.VITE_GEMINI_AUDIO_MODEL || "gemini-2.5-flash-preview-tts";
 function getAI() {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey || apiKey === 'your_api_key_here') {
     throw new Error("GEMINI_API_KEY fehlt! Bitte trage deinen API-Key in die .env Datei ein.");
   }
@@ -133,31 +134,41 @@ export async function speakText(text: string, cacheKey: string): Promise<AudioBu
   const cached = await AudioCacheService.get(cacheKey, ctx);
   if (cached) return cached;
 
-  console.log(`Generiere Audio für: "${text.substring(0, 30)}..."`);
-  const response = await getAI().models.generateContent({
-    model: DEFAULT_MODEL,
-    contents: [{ parts: [{ text: `Sprich als freundliche Lehrerin: ${text}` }] }],
-    config: {
-      responseModalities: [Modality.AUDIO],
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: { voiceName: 'Puck' }
+  console.log(`Generiere Audio mit Modell ${AUDIO_MODEL} für: "${text.substring(0, 30)}..."`);
+
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: AUDIO_MODEL,
+      contents: [{ parts: [{ text: `Lies bitte kurz vor: ${text}` }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Puck' }
+          }
         }
       }
+    });
+
+    const base64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!base64) {
+      console.error("Gemini Antwort ohne Audio-Daten:", JSON.stringify(response, null, 2));
+      throw new Error("Audio generation failed: No audio data in response");
     }
-  });
 
-  const base64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-  if (!base64) throw new Error("Audio generation failed");
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const dataInt16 = new Int16Array(bytes.buffer);
+    const buffer = ctx.createBuffer(1, dataInt16.length, 24000);
+    buffer.getChannelData(0).set(Array.from(dataInt16).map(v => v / 32768.0));
 
-  const dataInt16 = new Int16Array(bytes.buffer);
-  const buffer = ctx.createBuffer(1, dataInt16.length, 24000);
-  buffer.getChannelData(0).set(Array.from(dataInt16).map(v => v / 32768.0));
-
-  await AudioCacheService.set(cacheKey, buffer);
-  return buffer;
+    await AudioCacheService.set(cacheKey, buffer);
+    return buffer;
+  } catch (err: any) {
+    console.error("Fehler bei Audio-Generierung:", err);
+    throw err;
+  }
 }
