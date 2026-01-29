@@ -49,15 +49,24 @@ npm run dev
 
 Die App ist nun erreichbar unter: `http://localhost:3000`
 
-### Tests ausführen
+### 🧪 Tests ausführen
 
-Öffne im Browser: `http://localhost:3000/test.html`
+Die Anwendung verfügt über eine integrierte Test-Suite, die direkt im Browser ausgeführt werden kann. Alle Tests verwenden **Mocks** für die Gemini-API, sodass keine Kosten entstehen.
 
-Oder in der Browser-Konsole der Haupt-App:
+#### 1. In der Browser-Konsole (Empfohlen)
+Öffne die App im Browser, drücke `F12` und gib folgendes in die Konsole ein:
+
 ```javascript
-import { TaskModelTests } from './tests/TaskModel.test.ts';
-TaskModelTests.runAll();
+// Alle Standard-Tests (Modell, Repositories, Filter)
+await TaskModelTests.runAll();
+
+// Spezieller Bug-Reproduction Test (Löschen & Re-Upload)
+await BugReproductionTests.run();
 ```
+
+#### 2. Über die Test-Seite
+Alternativ kannst du die dedizierte Test-Seite aufrufen:
+`http://localhost:3000/test.html`
 
 ### Production Build
 

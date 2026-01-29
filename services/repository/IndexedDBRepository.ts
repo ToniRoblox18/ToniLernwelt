@@ -128,8 +128,29 @@ export class IndexedDBRepository implements ITaskRepository {
         });
     }
 
-    async clearAll(): Promise<void> {
+    async clearAll(onlyTestData: boolean = false): Promise<void> {
         const db = await this.ensureDB();
+
+        if (onlyTestData) {
+            const all = await this.getAll();
+            const toDelete = all.filter(t => t.isTestData);
+            if (toDelete.length === 0) return;
+
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction([TASK_STORE, AUDIO_STORE], 'readwrite');
+                const store = tx.objectStore(TASK_STORE);
+                const audioStore = tx.objectStore(AUDIO_STORE);
+
+                for (const t of toDelete) {
+                    store.delete(t.id);
+                    audioStore.delete(t.id);
+                }
+
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
         return new Promise((resolve, reject) => {
             const tx = db.transaction([TASK_STORE, AUDIO_STORE], 'readwrite');
             tx.objectStore(TASK_STORE).clear();

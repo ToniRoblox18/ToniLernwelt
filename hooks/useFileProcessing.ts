@@ -3,19 +3,50 @@ import { useState } from 'react';
 import { TaskModel } from '../model/TaskModel';
 import { GeminiAnalysisService } from '../services/geminiService';
 import { TaskSolution } from '../types';
+import { MockTaskGenerator } from '../services/MockTaskGenerator';
 
-export const useFileProcessing = (onSuccess: (tasks: TaskSolution[]) => void, onError: (msg: string) => void) => {
+export const useFileProcessing = (
+  solutions: TaskSolution[],
+  isTestMode: boolean,
+  onSuccess: (tasks: TaskSolution[]) => void,
+  onError: (msg: string) => void
+) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const getFingerprint = (file: File) => `${file.name}-${file.size}-${file.lastModified}`;
+  const getFingerprint = (file: File) => `${file.name}-${file.size}-${file.lastModified}-${file.type}`;
 
   const processFiles = async (files: FileList) => {
+    if (isTestMode) {
+      setIsProcessing(true);
+      setProgress(20);
+      await new Promise(r => setTimeout(r, 800)); // Simulierte Ladezeit
+
+      const count = Math.floor(Math.random() * 3) + 1; // 1, 2 oder 3
+      console.log(`[TestMode] Generiere ${count} simulierte Aufgaben.`);
+
+      const mocks = MockTaskGenerator.generateTasks(count);
+      const updated = await TaskModel.addTasks(mocks);
+
+      setProgress(100);
+      onSuccess(updated);
+      setIsProcessing(false);
+      return;
+    }
+
     const arr = Array.from(files);
+    console.log(`Verarbeite ${arr.length} Dateien. Aktuelle Bibliothek hat ${solutions.length} Einträge.`);
+
     const filesToProcess = arr.filter(f => {
-      const exists = TaskModel.exists(getFingerprint(f));
-      if (exists) onError(`"${f.name}" wurde bereits analysiert.`);
-      return !exists;
+      const fp = getFingerprint(f);
+      const existing = solutions.find(s => s.fileFingerprint === fp);
+
+      if (existing) {
+        console.warn(`Duplikat erkannt: "${f.name}" kollidiert mit Task "${existing.taskTitle}" (ID: ${existing.displayId || existing.id})`);
+        onError(`"${f.name}" wurde bereits analysiert (als "${existing.taskTitle}").`);
+        return false;
+      }
+      return true;
     });
 
     if (filesToProcess.length === 0) return;

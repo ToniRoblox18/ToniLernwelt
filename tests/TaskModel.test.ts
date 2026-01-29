@@ -6,9 +6,13 @@
 import { TaskModel } from '../model/TaskModel';
 import type { TaskSolution } from '../types';
 import { resetRepository } from '../services/repository';
+import { GeminiAnalysisService, GeminiAudioService } from '../services/geminiService';
 
 export class TaskModelTests {
   static async runAll(): Promise<void> {
+    GeminiAnalysisService.isMockMode = true;
+    GeminiAudioService.isMockMode = true;
+
     console.group("%c 🧪 LernBegleiter Pro - TDD Suite ", "background: #2563eb; color: white; font-weight: bold; padding: 4px 8px; border-radius: 4px;");
 
     const results: { name: string; passed: boolean; error?: Error }[] = [];

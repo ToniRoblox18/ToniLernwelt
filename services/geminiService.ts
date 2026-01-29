@@ -34,11 +34,62 @@ export function getSharedAudioContext() {
   return sharedAudioCtx;
 }
 
+// Helper for Gemini SDK calls with retry logic for 429 quota errors
+async function callGeminiWithRetry<T>(call: () => Promise<any>, maxRetries = 3): Promise<any> {
+  let retries = 0;
+  while (retries < maxRetries) {
+    try {
+      return await call();
+    } catch (err: any) {
+      // Check for 429 error (Quota)
+      // The SDK error object often has a status or message
+      const isQuotaError =
+        err.status === 429 ||
+        (err.message && err.message.toLowerCase().includes("quota")) ||
+        (err.message && err.message.includes("429"));
+
+      if (isQuotaError && retries < maxRetries - 1) {
+        retries++;
+        // Attempt to extract wait time or use user's suggested 20s
+        // SDK might not expose headers directly easily, so we use a robust fallback
+        const waitTime = 20000 * retries; // Exponential or fixed 20s base
+        console.warn(`[Gemini] Quota erreicht (429). Versuch ${retries}/${maxRetries}. Warte ${waitTime / 1000}s...`);
+        await new Promise(r => setTimeout(r, waitTime));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 // Schema imported from shared definition
 import { RESPONSE_SCHEMA } from "./geminiSchema";
 
 export class GeminiAnalysisService {
+  public static isMockMode = false;
+
   static async analyzeTaskImage(base64Data: string, pageNumber: number, mimeType: string = "image/jpeg"): Promise<TaskSolution> {
+    if (this.isMockMode) {
+      console.log("GeminiAnalysisService: MOCK MODE ACTIVE");
+      return {
+        id: `mock-${Date.now()}`,
+        pageNumber,
+        grade: 'Klasse 2',
+        subject: 'Mathematik',
+        subSubject: 'Test',
+        taskTitle: 'Mock Aufgabe',
+        taskDescription_de: 'Berschreibung',
+        taskDescription_vi: 'Descriptive',
+        steps: [],
+        solutionTable: [{ taskNumber: '1', label_de: 'A', label_vi: 'B', value_de: '1', value_vi: '1' }],
+        finalSolution_de: 'Lösung',
+        finalSolution_vi: 'Solution',
+        teacherSection: { learningGoal_de: 'Test', studentSteps_de: [], explanation_de: 'Test', summary_de: 'Test' },
+        timestamp: Date.now(),
+        imagePreview: `data:${mimeType};base64,${base64Data}`
+      };
+    }
+
     const prompt = `Analysiere diese Buchseite extrem gründlich. Dein Ziel ist es, KEINE Aufgabe zu übersehen.
     1. Scanne die Seite von oben nach unten und links nach rechts.
     2. Identifiziere JEDE Aufgabe, die durch eine Nummer (1, 2, 3...), einen Buchstaben (a, b, c...) oder ein Symbol gekennzeichnet ist. Achte besonders auf Aufgaben am Seitenrand, in Fußnoten oder in separaten Kästen.
@@ -50,7 +101,7 @@ export class GeminiAnalysisService {
 
     try {
       console.log(`Starte Analyse für Seite ${pageNumber} (${mimeType})...`);
-      const result = await getAI().models.generateContent({
+      const result = await callGeminiWithRetry(() => getAI().models.generateContent({
         model: DEFAULT_MODEL,
         contents: [
           {
@@ -64,7 +115,7 @@ export class GeminiAnalysisService {
           responseMimeType: "application/json",
           responseSchema: RESPONSE_SCHEMA
         }
-      });
+      }));
 
       // In many SDK versions, result.text is a getter for the first candidate's text
       let text = result.text;
@@ -97,16 +148,25 @@ export class GeminiAnalysisService {
 }
 
 export class GeminiAudioService {
+  public static isMockMode = false;
+
   static async speakText(text: string, cacheKey: string): Promise<AudioBuffer> {
     const ctx = getSharedAudioContext();
     const cached = await AudioCacheService.get(cacheKey, ctx);
     if (cached) return cached;
 
+    if (this.isMockMode) {
+      console.log("GeminiAudioService: MOCK MODE ACTIVE");
+      const buffer = ctx.createBuffer(1, 24000, 24000); // 1s silence
+      await AudioCacheService.set(cacheKey, buffer);
+      return buffer;
+    }
+
     console.log(`Generiere Audio mit Modell ${AUDIO_MODEL} für: "${text.substring(0, 30)}..."`);
 
     try {
       const ai = getAI();
-      const response = await ai.models.generateContent({
+      const response = await callGeminiWithRetry(() => ai.models.generateContent({
         model: AUDIO_MODEL,
         contents: [{ parts: [{ text: `Lies bitte kurz vor: ${text}` }] }],
         config: {
@@ -117,7 +177,7 @@ export class GeminiAudioService {
             }
           }
         }
-      });
+      }));
 
       const base64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
       if (!base64) {

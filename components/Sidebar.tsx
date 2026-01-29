@@ -16,19 +16,21 @@ interface SidebarProps {
   solutions: TaskSolution[];
   currentId: string | null;
   darkMode: boolean;
+  isTestMode: boolean;
   mode: AppMode;
   filters: { grade: string | null; subject: string | null };
   onSelect: (id: string) => void;
   onUploadClick: () => void;
   onToggleDarkMode: () => void;
   onToggleMode: () => void;
-  onClearAll: () => void;
+  onToggleTestMode: () => void;
+  onClearAll: () => Promise<void>;
   onFilterChange: (filters: { grade: string | null; subject: string | null }) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
-  solutions, currentId, darkMode, mode, filters,
-  onSelect, onUploadClick, onToggleDarkMode, onToggleMode, onClearAll, onFilterChange
+  solutions, currentId, darkMode, isTestMode, mode, filters,
+  onSelect, onUploadClick, onToggleDarkMode, onToggleMode, onToggleTestMode, onClearAll, onFilterChange
 }) => {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -155,7 +157,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         mode={mode}
+        isTestMode={isTestMode}
         onToggleMode={onToggleMode}
+        onToggleTestMode={onToggleTestMode}
         onClearAll={onClearAll}
       />
     </>

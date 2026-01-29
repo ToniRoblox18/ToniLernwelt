@@ -5,6 +5,7 @@
 
 import type { ITaskRepository } from './ITaskRepository';
 import { IndexedDBRepository } from './IndexedDBRepository';
+import { getSQLiteRepository } from '../database/sqliteRepository';
 
 export type RepositoryType = 'indexeddb' | 'sqlite' | 'supabase';
 
@@ -15,11 +16,11 @@ let currentType: RepositoryType | null = null;
 /**
  * Erstellt oder gibt die aktuelle Repository-Instanz zurück
  * 
- * @param type - Der gewünschte Repository-Typ (default: 'indexeddb')
+ * @param type - Der gewünschte Repository-Typ (default: 'sqlite')
  * @param forceNew - Erzwingt eine neue Instanz (für Tests/Migration)
  */
 export async function getRepository(
-    type: RepositoryType = 'indexeddb',
+    type: RepositoryType = 'sqlite',
     forceNew: boolean = false
 ): Promise<ITaskRepository> {
 
@@ -31,8 +32,16 @@ export async function getRepository(
     // Erstelle neue Instanz basierend auf Typ
     switch (type) {
         case 'sqlite':
-            // TODO: Phase 2 - sql.js Integration
-            throw new Error('SQLite Repository not yet implemented. Coming in Phase 2.');
+            try {
+                repositoryInstance = await getSQLiteRepository() as unknown as ITaskRepository;
+                console.log("[Repository] SQLite aktiv.");
+            } catch (err) {
+                console.warn("[Repository] SQLite (OPFS) nicht verfügbar. Nutze IndexedDB als Fallback für Persistenz.", err);
+                repositoryInstance = new IndexedDBRepository();
+                await repositoryInstance.init();
+                console.log("[Repository] IndexedDB als Fallback aktiv.");
+            }
+            break;
 
         case 'supabase':
             // TODO: Phase 3 - Supabase Integration
@@ -41,11 +50,11 @@ export async function getRepository(
         case 'indexeddb':
         default:
             repositoryInstance = new IndexedDBRepository();
+            await repositoryInstance.init();
             break;
     }
 
     currentType = type;
-    await repositoryInstance.init();
     return repositoryInstance;
 }
 

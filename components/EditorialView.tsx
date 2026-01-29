@@ -10,11 +10,12 @@ interface EditorialViewProps {
   onUpload: (files: FileList) => void;
   onDelete: (id: string) => void;
   isBusy: boolean;
+  isTestMode: boolean;
   progress: number;
   onStartStage: () => void;
 }
 
-export const EditorialView: React.FC<EditorialViewProps> = ({ solutions, onUpload, onDelete, isBusy, progress, onStartStage }) => (
+export const EditorialView: React.FC<EditorialViewProps> = ({ solutions, onUpload, onDelete, isBusy, isTestMode, progress, onStartStage }) => (
   <div className="flex-1 overflow-y-auto p-8 bg-slate-50 dark:bg-slate-950/50">
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
       <header className="flex items-center justify-between">
@@ -36,12 +37,14 @@ export const EditorialView: React.FC<EditorialViewProps> = ({ solutions, onUploa
         </button>
       </header>
 
-      <UploadZone onFilesSelected={onUpload} />
+      <UploadZone onFilesSelected={onUpload} isTestMode={isTestMode} />
 
       {isBusy && (
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-blue-100 dark:border-blue-900/30 shadow-xl animate-pulse">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-bold text-orange-500">KI analysiert Aufgaben...</span>
+            <span className={`text-sm font-bold ${isTestMode ? 'text-amber-500' : 'text-blue-500'}`}>
+              {isTestMode ? "Simuliere Analyse..." : "KI analysiert Aufgaben..."}
+            </span>
             <span className="text-sm font-bold">{Math.round(progress)}%</span>
           </div>
           <div className="flex-1 h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">

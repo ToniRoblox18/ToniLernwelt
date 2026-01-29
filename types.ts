@@ -39,6 +39,7 @@ export interface TaskSolution {
   fileFingerprint?: string;
   displayId?: string; // e.g. K2_DEU_1
   timestamp: number;
+  isTestData?: boolean; // Kennung für Test-Datensätze
 }
 
 export type Language = 'de' | 'vi';
@@ -49,6 +50,7 @@ export interface AppState {
   currentSolutionId: string | null;
   uiLanguage: Language;
   isProcessing: boolean;
+  isTestMode: boolean; // Globaler Test-Modus Status
   progress: number;
   darkMode: boolean;
   mode: AppMode;

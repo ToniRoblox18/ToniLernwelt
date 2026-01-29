@@ -14,8 +14,9 @@ const App: React.FC = () => {
     currentSolutionId: null,
     uiLanguage: 'vi',
     isProcessing: false,
+    isTestMode: localStorage.getItem('testMode') === 'true',
     progress: 0,
-    darkMode: localStorage.getItem('theme') !== 'light',
+    darkMode: localStorage.getItem('theme') === 'light' ? false : true,
     mode: (localStorage.getItem('mode') as AppMode) || 'stage',
     notification: null,
     filters: { grade: null, subject: null }
@@ -35,6 +36,8 @@ const App: React.FC = () => {
   };
 
   const { processFiles, isProcessing, progress } = useFileProcessing(
+    state.solutions,
+    state.isTestMode,
     (tasks) => setState(p => ({ ...p, solutions: [...tasks] })),
     (msg) => notify(msg, 'error')
   );
@@ -43,7 +46,8 @@ const App: React.FC = () => {
     document.documentElement.classList.toggle('dark', state.darkMode);
     localStorage.setItem('theme', state.darkMode ? 'dark' : 'light');
     localStorage.setItem('mode', state.mode);
-  }, [state.darkMode, state.mode]);
+    localStorage.setItem('testMode', state.isTestMode.toString());
+  }, [state.darkMode, state.mode, state.isTestMode]);
 
   // Gefilterte Lösungen berechnen
   const filteredSolutions = TaskModel.filterLocal(state.filters);
@@ -60,10 +64,31 @@ const App: React.FC = () => {
   };
 
   const handleClearAll = async () => {
-    if (confirm("Möchten Sie wirklich alle Aufgaben und Sprachaufnahmen unwiderruflich löschen?")) {
-      const empty = await TaskModel.clear();
-      setState(p => ({ ...p, solutions: empty, currentSolutionId: null }));
+    console.log("[App] handleClearAll initiated. TestMode:", state.isTestMode);
+
+    const msg = state.isTestMode
+      ? "Möchten Sie wirklich alle SIMULIERTEN Test-Aufgaben löschen?"
+      : "Möchten Sie wirklich alle ECHTEN Aufgaben und Sprachaufnahmen unwiderruflich löschen?";
+
+    if (window.confirm(msg)) {
+      console.log("[App] User confirmed deletion.");
+      try {
+        const empty = await TaskModel.clear(state.isTestMode);
+        console.log("[App] Deletion successful. Remaining tasks:", empty.length);
+        setState(p => ({ ...p, solutions: empty, currentSolutionId: null }));
+        notify(state.isTestMode ? "Testdaten gelöscht" : "Alle Aufgaben gelöscht", "success");
+      } catch (err) {
+        console.error("[App] Deletion failed:", err);
+        notify("Fehler beim Löschen der Daten", "error");
+      }
+    } else {
+      console.log("[App] User cancelled deletion.");
     }
+  };
+
+  const handleToggleTestMode = () => {
+    setState(p => ({ ...p, isTestMode: !p.isTestMode }));
+    notify(state.isTestMode ? "KI-Modus aktiviert (Scharf)" : "Test-Modus aktiviert (Simulation)", "info");
   };
 
   return (
@@ -73,12 +98,14 @@ const App: React.FC = () => {
         solutions={filteredSolutions}
         currentId={state.currentSolutionId}
         darkMode={state.darkMode}
+        isTestMode={state.isTestMode}
         mode={state.mode}
         filters={state.filters}
         onSelect={id => setState(p => ({ ...p, currentSolutionId: id }))}
         onUploadClick={() => fileInputRef.current?.click()}
         onToggleDarkMode={() => setState(p => ({ ...p, darkMode: !p.darkMode }))}
         onToggleMode={() => setState(p => ({ ...p, mode: p.mode === 'editorial' ? 'stage' : 'editorial' }))}
+        onToggleTestMode={handleToggleTestMode}
         onClearAll={handleClearAll}
         onFilterChange={filters => setState(p => ({ ...p, filters }))}
       />
@@ -92,6 +119,7 @@ const App: React.FC = () => {
             onUpload={processFiles}
             onDelete={handleDeleteTask}
             isBusy={isProcessing}
+            isTestMode={state.isTestMode}
             progress={progress}
             onStartStage={() => setState(p => ({ ...p, mode: 'stage' }))}
           />

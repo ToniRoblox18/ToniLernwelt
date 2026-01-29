@@ -16,7 +16,30 @@ export class TaskModel {
    */
   static async load(): Promise<TaskSolution[]> {
     this.repo = await getRepository();
-    this.tasks = await this.repo.getAll();
+    const all = await this.repo.getAll();
+
+    // Check for fingerprint duplicates in the database (Ghost-Check)
+    const seenFp = new Set<string>();
+    const unique = [];
+    const duplicates = [];
+
+    for (const t of all) {
+      if (t.fileFingerprint && seenFp.has(t.fileFingerprint)) {
+        duplicates.push(t);
+      } else {
+        if (t.fileFingerprint) seenFp.add(t.fileFingerprint);
+        unique.push(t);
+      }
+    }
+
+    if (duplicates.length > 0) {
+      console.warn(`Gefundene Duplikate in der DB (${duplicates.length}), bereinige...`);
+      for (const d of duplicates) {
+        await this.repo.delete(d.id);
+      }
+    }
+
+    this.tasks = unique;
     return this.tasks;
   }
 
@@ -36,21 +59,19 @@ export class TaskModel {
       'Physik': 'PHY', 'Chemie': 'CHE', 'Biologie': 'BIO',
       'Geschichte': 'GES', 'Geografie': 'GEO'
     };
-    // Fuzzy search or substring check could be added, but simple map for now
+
     let subjectCode = 'SON'; // Sonstiges
     for (const [key, val] of Object.entries(subjectMap)) {
-      if (task.subject && task.subject.includes(key)) {
+      if (task.subject && task.subject.toLowerCase().includes(key.toLowerCase())) {
         subjectCode = val;
         break;
       }
     }
 
     // 3. Count (How many Kx_SUB exist?)
-    // Filter existing tasks that match this pattern to find the max number
     const prefix = `${gradeCode}_${subjectCode}`;
     const existing = allTasks.filter(t => t.displayId && t.displayId.startsWith(prefix));
 
-    // Find max number
     let maxNum = 0;
     existing.forEach(t => {
       const parts = t.displayId?.split('_');
@@ -70,21 +91,25 @@ export class TaskModel {
     if (!this.repo) await this.load();
 
     const validTasks: TaskSolution[] = [];
-
-    // Working copoy of current tasks to count correctly within this batch
     const currentTasks = [...this.tasks];
 
     for (const task of newTasks) {
-      // Skip duplicates based on fingerprint
+      // 1. Check current memory
+      if (task.fileFingerprint && this.tasks.some(t => t.fileFingerprint === task.fileFingerprint)) {
+        console.warn(`Task mit FP ${task.fileFingerprint} bereits im Speicher (Batch-Skip).`);
+        continue;
+      }
+
+      // 2. Check repository
       if (task.fileFingerprint && await this.repo!.exists(task.fileFingerprint)) {
-        console.warn(`Task mit Fingerprint ${task.fileFingerprint} existiert bereits, übersprungen.`);
+        console.warn(`Task mit FP ${task.fileFingerprint} existiert bereits in DB (Skip).`);
         continue;
       }
 
       // Generate ID if missing
       if (!task.displayId) {
         task.displayId = this.generateId(task, currentTasks);
-        currentTasks.push(task); // Add to temp list so next one counts up correctly
+        currentTasks.push(task);
       }
 
       await this.repo!.save(task);
@@ -102,20 +127,38 @@ export class TaskModel {
   static async removeTask(id: string): Promise<TaskSolution[]> {
     if (!this.repo) await this.load();
 
+    const taskToRemove = this.tasks.find(t => t.id === id);
+    if (!taskToRemove) {
+      console.warn(`removeTask: ID ${id} nicht gefunden.`);
+      return this.tasks;
+    }
+
+    console.log(`Lösche Aufgabe: ${taskToRemove.taskTitle} (ID: ${id}, FP: ${taskToRemove.fileFingerprint})`);
+
     await this.repo!.delete(id);
+
+    // Zusätzliche Sicherheit: Falls wir Dubletten haben, filtern wir nach ID
+    // (In Zukunft könnten wir hier auch nach FP löschen, falls gewünscht)
     this.tasks = this.tasks.filter(t => t.id !== id);
+
     return this.tasks;
   }
 
   /**
-   * Löscht alle Aufgaben und Audio-Daten
+   * Löscht Aufgaben. Wenn onlyTestData true ist, werden nur Simulationsdaten gelöscht.
    */
-  static async clear(): Promise<TaskSolution[]> {
+  static async clear(onlyTestData: boolean = false): Promise<TaskSolution[]> {
+    console.log(`[TaskModel] clear(onlyTestData=${onlyTestData}) - Start. Cache-Size: ${this.tasks.length}`);
     if (!this.repo) await this.load();
 
-    await this.repo!.clearAll();
-    this.tasks = [];
-    return [];
+    await this.repo!.clearAll(onlyTestData);
+
+    // Cache radikal neu laden statt manuell zu filtern (verhindert Inkonsistenzen)
+    const fresh = await this.repo!.getAll();
+    this.tasks = fresh;
+
+    console.log(`[TaskModel] clear - Fertig. Neue Cache-Size: ${this.tasks.length}`);
+    return this.tasks;
   }
 
   /**
@@ -137,6 +180,13 @@ export class TaskModel {
    */
   static getById(id: string): TaskSolution | undefined {
     return this.tasks.find(t => t.id === id);
+  }
+
+  /**
+   * Findet Aufgabe nach Fingerprint (Memory Check)
+   */
+  static getByFingerprint(fingerprint: string): TaskSolution | undefined {
+    return this.tasks.find(t => t.fileFingerprint === fingerprint);
   }
 
   // === Filter-Funktionen ===

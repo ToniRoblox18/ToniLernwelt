@@ -43,9 +43,9 @@ export interface ITaskRepository {
     delete(id: string): Promise<void>;
 
     /**
-     * Löscht alle Aufgaben und Audio-Daten
+     * Löscht Aufgaben. Wenn onlyTestData true ist, werden nur Simulationsdaten gelöscht.
      */
-    clearAll(): Promise<void>;
+    clearAll(onlyTestData?: boolean): Promise<void>;
 
     /**
      * Findet eine Aufgabe anhand des Datei-Fingerprints (für Deduplizierung)
