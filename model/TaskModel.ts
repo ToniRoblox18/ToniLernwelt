@@ -16,6 +16,12 @@ export class TaskModel {
    */
   static async load(): Promise<TaskSolution[]> {
     this.repo = await getRepository();
+
+    // Automatische Migration von Lokal zu Cloud wenn nötig
+    if (this.repo.constructor.name === 'SupabaseRepository') {
+      await this.migrateLocalToCloud();
+    }
+
     const all = await this.repo.getAll();
 
     // Check for fingerprint duplicates in the database (Ghost-Check)
@@ -41,6 +47,62 @@ export class TaskModel {
 
     this.tasks = unique;
     return this.tasks;
+  }
+
+  /**
+   * Einmalige Migration von SQLite zu Supabase
+   */
+  private static async migrateLocalToCloud(): Promise<void> {
+    if (localStorage.getItem('toni_migration_done') === 'true') return;
+
+    try {
+      const cloudRepo = this.repo!;
+      const cloudTasks = await cloudRepo.getAll();
+
+      // Wenn Cloud schon Daten hat, markieren wir es als erledigt
+      if (cloudTasks.length > 0) {
+        localStorage.setItem('toni_migration_done', 'true');
+        return;
+      }
+
+      console.log('[Migration] Starte automatische Migration von SQLite zu Supabase...');
+
+      // Lokales Repository explizit öffnen
+      const localRepo = await getRepository('sqlite', true);
+      const localTasks = await localRepo.getAll();
+
+      if (localTasks.length === 0) {
+        console.log('[Migration] Keine lokalen Daten zum Migrieren gefunden.');
+        return;
+      }
+
+      console.log(`[Migration] Migriere ${localTasks.length} Aufgaben...`);
+
+      for (const task of localTasks) {
+        // 1. Task + Struktur
+        await cloudRepo.save(task);
+
+        // 2. Audio (falls vorhanden)
+        // Hinweis: Wir nutzen einen Standard-AudioContext für den Download/Upload
+        // Da wir hier im Browser sind, ist 'window.AudioContext' verfügbar.
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const audio = await localRepo.getAudio(task.id, ctx);
+        if (audio) {
+          await cloudRepo.saveAudio(task.id, audio);
+        }
+        await ctx.close();
+
+        console.log(`[Migration] Aufgabe '${task.taskTitle}' erfolgreich übertragen.`);
+      }
+
+      console.log('[Migration] Migration erfolgreich abgeschlossen.');
+      localStorage.setItem('toni_migration_done', 'true');
+
+      // Wir schalten zurück auf das Cloud-Repo für den weiteren Betrieb
+      this.repo = cloudRepo;
+    } catch (err) {
+      console.error('[Migration] Kritischer Fehler während der Migration:', err);
+    }
   }
 
   /**

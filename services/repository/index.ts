@@ -5,6 +5,7 @@
 
 import type { ITaskRepository } from './ITaskRepository';
 import { IndexedDBRepository } from './IndexedDBRepository';
+import { SupabaseRepository } from './SupabaseRepository';
 import { getSQLiteRepository } from '../database/sqliteRepository';
 
 export type RepositoryType = 'indexeddb' | 'sqlite' | 'supabase';
@@ -16,11 +17,11 @@ let currentType: RepositoryType | null = null;
 /**
  * Erstellt oder gibt die aktuelle Repository-Instanz zurück
  * 
- * @param type - Der gewünschte Repository-Typ (default: 'sqlite')
+ * @param type - Der gewünschte Repository-Typ (default: 'supabase')
  * @param forceNew - Erzwingt eine neue Instanz (für Tests/Migration)
  */
 export async function getRepository(
-    type: RepositoryType = 'sqlite',
+    type: RepositoryType = 'supabase',
     forceNew: boolean = false
 ): Promise<ITaskRepository> {
 
@@ -31,6 +32,12 @@ export async function getRepository(
 
     // Erstelle neue Instanz basierend auf Typ
     switch (type) {
+        case 'supabase':
+            repositoryInstance = new SupabaseRepository();
+            await repositoryInstance.init();
+            console.log("[Repository] Supabase (Cloud) aktiv.");
+            break;
+
         case 'sqlite':
             try {
                 repositoryInstance = await getSQLiteRepository() as unknown as ITaskRepository;
@@ -42,10 +49,6 @@ export async function getRepository(
                 console.log("[Repository] IndexedDB als Fallback aktiv.");
             }
             break;
-
-        case 'supabase':
-            // TODO: Phase 3 - Supabase Integration
-            throw new Error('Supabase Repository not yet implemented. Coming in Phase 3.');
 
         case 'indexeddb':
         default:
