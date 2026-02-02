@@ -1,26 +1,77 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { TaskSolution } from '../types';
 import { useAudioStatus } from '../hooks/useAudioStatus';
-import { CheckCircle2, Volume2, Loader2, AlertCircle, Trash2 } from 'lucide-react';
+import { CheckCircle2, Volume2, Loader2, AlertCircle, Trash2, FileDown, CheckSquare, Square } from 'lucide-react';
 
 interface EditorialDashboardProps {
   solutions: TaskSolution[];
   onDelete: (id: string) => void;
+  onExport: (selectedIds: string[]) => void;
 }
 
-export const EditorialDashboard: React.FC<EditorialDashboardProps> = ({ solutions, onDelete }) => {
+export const EditorialDashboard: React.FC<EditorialDashboardProps> = ({ solutions, onDelete, onExport }) => {
   const { statuses, generate, generateMissing } = useAudioStatus(solutions);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   if (solutions.length === 0) return null;
 
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const selectAll = () => {
+    if (selectedIds.size === solutions.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(solutions.map(s => s.id)));
+    }
+  };
+
+  const handleExport = () => {
+    if (selectedIds.size > 0) {
+      onExport(Array.from(selectedIds));
+    }
+  };
+
   return (
     <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-      <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-        <h3 className="font-bold">Aufgaben-Verwaltung</h3>
-        <button onClick={generateMissing} className="text-xs font-bold border px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-slate-50 transition-colors">
-          <Volume2 className="w-4 h-4 text-blue-500" /> Alles generieren
-        </button>
+      <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold">Aufgaben-Verwaltung</h3>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={selectAll} 
+              className="text-xs font-bold border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              {selectedIds.size === solutions.length ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4 text-slate-400" />}
+              {selectedIds.size === solutions.length ? 'Alle abwählen' : 'Alle auswählen'}
+            </button>
+            <button 
+              onClick={handleExport} 
+              disabled={selectedIds.size === 0}
+              className={`text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-2 transition-colors shadow-sm ${
+                selectedIds.size > 0 
+                  ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+              }`}
+            >
+              <FileDown className="w-4 h-4" /> PDF Export {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+            </button>
+            <button 
+              onClick={generateMissing} 
+              className="text-xs font-bold border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              <Volume2 className="w-4 h-4 text-blue-500" /> Alles generieren
+            </button>
+          </div>
+        </div>
       </div>
       <div className="divide-y divide-slate-100 dark:divide-slate-800">
         {solutions.map(sol => (
@@ -30,6 +81,8 @@ export const EditorialDashboard: React.FC<EditorialDashboardProps> = ({ solution
             status={statuses[sol.id]}
             onGenerate={() => generate(sol)}
             onDelete={() => onDelete(sol.id)}
+            isSelected={selectedIds.has(sol.id)}
+            onToggleSelection={() => toggleSelection(sol.id)}
           />
         ))}
       </div>
@@ -37,9 +90,15 @@ export const EditorialDashboard: React.FC<EditorialDashboardProps> = ({ solution
   );
 };
 
-const StatusRow = ({ sol, status, onGenerate, onDelete }: any) => (
+const StatusRow = ({ sol, status, onGenerate, onDelete, isSelected, onToggleSelection }: any) => (
   <div className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
     <div className="flex items-center gap-4 flex-1">
+      <button
+        onClick={onToggleSelection}
+        className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+      >
+        {isSelected ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4 text-slate-300" />}
+      </button>
       <div className="relative group">
         <img src={sol.imagePreview} className="w-12 h-16 object-cover rounded-lg border shadow-sm transition-transform group-hover:scale-105" alt="" />
         {sol.displayId && (

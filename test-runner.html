@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF Export Test Runner</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 {
+      color: #1a1a1a;
+      border-bottom: 3px solid #8b5cf6;
+      padding-bottom: 10px;
+    }
+    #console {
+      background: #1a1a1a;
+      color: #00ff00;
+      padding: 20px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      min-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      margin-top: 20px;
+    }
+    .success { color: #10b981; }
+    .error { color: #ef4444; }
+    .info { color: #3b82f6; }
+    .warning { color: #f59e0b; }
+    button {
+      background: #8b5cf6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #7c3aed;
+    }
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .test-info {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <h1>📄 PDF Export Test Runner</h1>
+  
+  <div class="test-info">
+    <h2>Vietnamese Text Export Test</h2>
+    <p>Dieser Test exportiert vietnamesischen Text in einer Tabelle zu PDF.</p>
+    <p><strong>Test-Inhalt:</strong></p>
+    <ul>
+      <li>3 Steps mit vietnamesischen Beschreibungen</li>
+      <li>5 Tabellenzeilen mit deutschen und vietnamesischen Texten</li>
+      <li>Testet die korrekte Darstellung der NotoSansVietnamese Font</li>
+    </ul>
+  </div>
+
+  <button id="runTest" onclick="runTests()">▶ Test starten</button>
+  <button onclick="clearConsole()">🗑️ Console leeren</button>
+
+  <div id="console"></div>
+
+  <script type="module">
+    import { PDFExportService } from './services/pdfExportService.ts';
+
+    let consoleDiv;
+
+    function log(message, className = '') {
+      if (!consoleDiv) consoleDiv = document.getElementById('console');
+      const line = document.createElement('div');
+      line.className = className;
+      line.textContent = message;
+      consoleDiv.appendChild(line);
+      consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    }
+
+    window.clearConsole = function() {
+      if (!consoleDiv) consoleDiv = document.getElementById('console');
+      consoleDiv.innerHTML = '';
+    }
+
+    function createVietnameseTableTask() {
+      return {
+        id: `vietnamese-test-${Date.now()}`,
+        pageNumber: 1,
+        grade: 'Klasse 5',
+        subject: 'Deutsch',
+        subSubject: 'Grammatik',
+        taskTitle: 'das/dass Übung',
+        taskDescription_de: 'Übung zu das/dass mit vietnamesischen Erklärungen',
+        taskDescription_vi: 'Bài tập về das/dass với giải thích tiếng Việt',
+        steps: [
+          {
+            title_de: 'Lerne die Ersetzungsmethode',
+            title_vi: 'Học cách thử thay thế',
+            description_de: 'Verwende "das" mit einem s, wenn du es durch "dieses", "jenes" oder "welches" ersetzen kannst.',
+            description_vi: "Sử dụng 'das' với một chữ 's' khi bạn có thể thay thế nó bằng 'dieses', 'jenes' hoặc 'welches'."
+          },
+          {
+            title_de: 'Erkenne die Konjunktion',
+            title_vi: 'Nhận biết liên từ',
+            description_de: 'Schreibe "dass" mit zwei s, wenn es einen Nebensatz einleitet und nicht ersetzt werden kann.',
+            description_vi: "Viết 'dass' với hai chữ 's' khi nó bắt đầu một mệnh đề phụ và không thể thay thế được."
+          },
+          {
+            title_de: 'Korrigiere den Text',
+            title_vi: 'Sửa lỗi đoạn văn',
+            description_de: 'Lies den Text sorgfältig und prüfe jedes "das/dass", ob die Regel eingehalten wurde.',
+            description_vi: 'Đọc kỹ đoạn văn và kiểm tra từng từ "das/dass" xem quy tắc đã được tuân thủ chưa.'
+          }
+        ],
+        solutionTable: [
+          {
+            taskNumber: '1',
+            label_de: 'Unterstützung',
+            label_vi: 'Hỗ trợ',
+            value_de: 'Lerne die Ersetzungsmethode',
+            value_vi: 'Học cách thử thay thế'
+          },
+          {
+            taskNumber: '2',
+            label_de: 'Regel "das"',
+            label_vi: 'Quy tắc "das"',
+            value_de: 'Verwende "das" mit einem s, wenn du es durch "dieses", "jenes" oder "welches" ersetzen kannst.',
+            value_vi: "Sử dụng 'das' với một chữ 's' khi bạn có thể thay thế nó bằng 'dieses', 'jenes' hoặc 'welches'."
+          },
+          {
+            taskNumber: '3',
+            label_de: 'Regel "dass"',
+            label_vi: 'Quy tắc "dass"',
+            value_de: 'Schreibe "dass" mit zwei s, wenn es einen Nebensatz einleitet und nicht ersetzt werden kann.',
+            value_vi: "Viết 'dass' với hai chữ 's' khi nó bắt đầu một mệnh đề phụ và không thể thay thế được."
+          },
+          {
+            taskNumber: '4',
+            label_de: 'Aufgabe',
+            label_vi: 'Nhiệm vụ',
+            value_de: 'Lies den Text sorgfältig und prüfe jedes "das/dass", ob die Regel eingehalten wurde.',
+            value_vi: 'Đọc kỹ đoạn văn và kiểm tra từng từ "das/dass" xem quy tắc đã được tuân thủ chưa.'
+          },
+          {
+            taskNumber: '5',
+            label_de: 'Aktion',
+            label_vi: 'Hành động',
+            value_de: 'Lege los',
+            value_vi: 'lege los'
+          }
+        ],
+        finalSolution_de: 'Die Übung testet das Verständnis der das/dass Regel.',
+        finalSolution_vi: 'Bài tập kiểm tra sự hiểu biết về quy tắc das/dass.',
+        teacherSection: {
+          learningGoal_de: 'Schüler können zwischen "das" und "dass" unterscheiden',
+          studentSteps_de: [
+            'Ersetzungsmethode anwenden',
+            'Konjunktion erkennen',
+            'Text korrigieren'
+          ],
+          explanation_de: 'Diese Übung hilft beim Verständnis der das/dass Unterscheidung',
+          summary_de: 'Wichtige Rechtschreibregel für deutsche Grammatik'
+        },
+        timestamp: Date.now(),
+        isTestData: true
+      };
+    }
+
+    window.runTests = async function() {
+      const button = document.getElementById('runTest');
+      button.disabled = true;
+      clearConsole();
+
+      log('📄 PDF Export Test Suite', 'info');
+      log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+      log('');
+
+      try {
+        log('🔄 Erstelle Test-Task mit vietnamesischem Text...', 'info');
+        const testTask = createVietnameseTableTask();
+        
+        log('✅ Test-Task erstellt', 'success');
+        log(`   - Titel: ${testTask.taskTitle}`, 'info');
+        log(`   - Steps: ${testTask.steps.length}`, 'info');
+        log(`   - Tabellenzeilen: ${testTask.solutionTable.length}`, 'info');
+        log('');
+
+        log('🔄 Exportiere zu PDF...', 'info');
+        const startTime = Date.now();
+        
+        await PDFExportService.exportToPDF([testTask], (current, total) => {
+          log(`   Fortschritt: ${current}/${total}`, 'info');
+        });
+        
+        const duration = Date.now() - startTime;
+        log('');
+        log('✅ PDF erfolgreich erstellt!', 'success');
+        log(`   - Dauer: ${duration}ms`, 'info');
+        log(`   - Dateiname: das_dass_Ubung.pdf`, 'success');
+        log(`   - Speicherort: Downloads-Ordner`, 'info');
+        log('');
+        
+        log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+        log('🎉 Test erfolgreich abgeschlossen!', 'success');
+        log('');
+        log('📋 Überprüfe bitte manuell:', 'warning');
+        log('   1. Öffne die PDF-Datei aus deinem Downloads-Ordner', 'warning');
+        log('   2. Prüfe, ob vietnamesische Zeichen korrekt angezeigt werden', 'warning');
+        log('   3. Achte besonders auf die Tabelle mit den 5 Zeilen', 'warning');
+        
+      } catch (error) {
+        log('', 'error');
+        log('❌ Test fehlgeschlagen:', 'error');
+        log(error.message, 'error');
+        if (error.stack) {
+          log('Stack Trace:', 'error');
+          log(error.stack, 'error');
+        }
+      } finally {
+        button.disabled = false;
+      }
+    };
+
+    // Auto-start wenn gewünscht
+    // window.addEventListener('load', () => runTests());
+  </script>
+</body>
+</html>
