@@ -313,7 +313,21 @@ export class TaskModel {
    * Lädt Audio-Buffer für eine Aufgabe
    */
   static async getAudio(taskId: string, ctx: AudioContext): Promise<AudioBuffer | null> {
-    if (!this.repo) await this.load();
+    console.log(`[TaskModel] getAudio: ${taskId}, repo=${this.repo ? 'OK' : 'NULL'}`);
+    if (!this.repo) {
+      console.log(`[TaskModel] Repository nicht initialisiert, lade...`);
+      await this.load();
+    }
+    console.log(`[TaskModel] Rufe repo.getAudio auf...`);
     return this.repo!.getAudio(taskId, ctx);
+  }
+
+  /**
+   * Löscht alle Audio-Daten aus dem persistenten Cache
+   */
+  static async clearAllAudio(): Promise<void> {
+    if (!this.repo) await this.load();
+    console.log('[TaskModel] Lösche alle Audio-Daten...');
+    await this.repo!.clearAllAudio();
   }
 }

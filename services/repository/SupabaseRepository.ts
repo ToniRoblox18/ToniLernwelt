@@ -6,6 +6,7 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { Mp3Encoder } from '@breezystack/lamejs';
 import { ITaskRepository, FilterOptions } from './ITaskRepository';
 import { TaskSolution, Step, TableRow } from '../../types';
 
@@ -249,68 +250,152 @@ export class SupabaseRepository implements ITaskRepository {
     }
 
     async saveAudio(key: string, buffer: AudioBuffer): Promise<void> {
-        const wavBlob = await this.audioBufferToWav(buffer);
+        const mp3Blob = await this.audioBufferToMp3(buffer);
+        const filePath = `audio/${key}.mp3`;
+
+        console.log(`[Supabase] Audio speichern (MP3): ${filePath} (${mp3Blob.size} bytes)`);
+
         const { error } = await this.client.storage
             .from(this.BUCKET_NAME)
-            .upload(`${key}.wav`, wavBlob, { contentType: 'audio/wav', upsert: true });
+            .upload(filePath, mp3Blob, { contentType: 'audio/mpeg', upsert: true });
 
-        if (error) console.error('[Supabase] Audio Save Fehler:', error);
+        if (error) {
+            console.error('[Supabase] Audio Save Fehler:', error.message);
+
+            if (error.message.includes('Bucket not found') || error.message.includes('not found')) {
+                console.error(`
+╔══════════════════════════════════════════════════════════════════╗
+║  SUPABASE STORAGE BUCKET FEHLT!                                  ║
+║                                                                  ║
+║  1. Öffne: Supabase Dashboard → Storage                          ║
+║  2. Klicke: "New Bucket"                                         ║
+║  3. Name: tasks-media                                            ║
+║  4. ✓ Public bucket                                              ║
+║  5. Speichern + F5                                               ║
+║                                                                  ║
+║  WICHTIG: Storage Policies müssen auch gesetzt werden!           ║
+║  → Bucket anklicken → Policies → New Policy                      ║
+║  → "Allow public access for all operations" oder:                ║
+║    INSERT/SELECT/UPDATE/DELETE für authenticated + anon          ║
+╚══════════════════════════════════════════════════════════════════╝
+                `);
+            }
+
+            // Nicht werfen - Audio bleibt im Memory-Cache
+            return;
+        }
+
+        console.log(`[Supabase] Audio erfolgreich gespeichert: ${filePath}`);
     }
 
     async getAudio(key: string, ctx: AudioContext): Promise<AudioBuffer | null> {
-        const { data, error } = await this.client.storage
-            .from(this.BUCKET_NAME)
-            .download(`${key}.wav`);
+        // Versuche zuerst MP3 (neues Format)
+        const mp3Path = `audio/${key}.mp3`;
+        console.log(`[Supabase] Audio laden: ${mp3Path}`);
 
-        if (error || !data) return null;
+        let { data, error } = await this.client.storage
+            .from(this.BUCKET_NAME)
+            .download(mp3Path);
+
+        if (error || !data) {
+            console.log(`[Supabase] Audio nicht gefunden: ${key}`);
+            return null;
+        }
+
         try {
             const arrayBuffer = await data.arrayBuffer();
-            return await ctx.decodeAudioData(arrayBuffer);
-        } catch (e) {
-            console.error('[Supabase] Audio Decode Fehler:', e);
+            console.log(`[Supabase] Audio geladen: ${key} (${arrayBuffer.byteLength} bytes), decodiere...`);
+            const buffer = await ctx.decodeAudioData(arrayBuffer);
+            console.log(`[Supabase] Audio erfolgreich decodiert: ${key}`);
+            return buffer;
+        } catch (e: any) {
+            console.error(`[Supabase] Audio Decode Fehler für ${key}:`, e?.message || e);
             return null;
         }
     }
 
     async deleteAudio(key: string): Promise<void> {
-        await this.client.storage.from(this.BUCKET_NAME).remove([`${key}.wav`]);
+        await this.client.storage.from(this.BUCKET_NAME).remove([`audio/${key}.mp3`]);
     }
 
-    private async audioBufferToWav(buffer: AudioBuffer): Promise<Blob> {
-        const numOfChannels = buffer.numberOfChannels;
-        const length = buffer.length * numOfChannels * 2 + 44;
-        const outBuffer = new ArrayBuffer(length);
-        const view = new DataView(outBuffer);
+    async clearAllAudio(): Promise<void> {
+        console.log('[Supabase] Lösche alle Audio-Dateien...');
 
-        this.writeString(view, 0, 'RIFF');
-        view.setUint32(4, 36 + buffer.length * numOfChannels * 2, true);
-        this.writeString(view, 8, 'WAVE');
-        this.writeString(view, 12, 'fmt ');
-        view.setUint32(16, 16, true);
-        view.setUint16(20, 1, true);
-        view.setUint16(22, numOfChannels, true);
-        view.setUint32(24, buffer.sampleRate, true);
-        view.setUint32(28, buffer.sampleRate * numOfChannels * 2, true);
-        view.setUint16(32, numOfChannels * 2, true);
-        view.setUint16(34, 16, true);
-        this.writeString(view, 36, 'data');
-        view.setUint32(40, buffer.length * numOfChannels * 2, true);
+        // Liste alle Dateien im audio/ Ordner
+        const { data: files, error: listError } = await this.client.storage
+            .from(this.BUCKET_NAME)
+            .list('audio');
 
-        let offset = 44;
-        for (let i = 0; i < buffer.length; i++) {
-            for (let channel = 0; channel < numOfChannels; channel++) {
-                let sample = buffer.getChannelData(channel)[i];
-                sample = Math.max(-1, Math.min(1, sample));
-                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
-                offset += 2;
+        if (listError) {
+            console.error('[Supabase] Fehler beim Auflisten der Audio-Dateien:', listError.message);
+            return;
+        }
+
+        if (!files || files.length === 0) {
+            console.log('[Supabase] Keine Audio-Dateien gefunden');
+            return;
+        }
+
+        // Lösche alle gefundenen Dateien
+        const filePaths = files.map(f => `audio/${f.name}`);
+        console.log(`[Supabase] Lösche ${filePaths.length} Audio-Dateien...`);
+
+        const { error: deleteError } = await this.client.storage
+            .from(this.BUCKET_NAME)
+            .remove(filePaths);
+
+        if (deleteError) {
+            console.error('[Supabase] Fehler beim Löschen:', deleteError.message);
+        } else {
+            console.log(`[Supabase] ${filePaths.length} Audio-Dateien gelöscht`);
+        }
+    }
+
+    /**
+     * Konvertiert AudioBuffer zu MP3 (ca. 10x kleiner als WAV)
+     * Verwendet lamejs für Browser-seitige Encodierung
+     *
+     * WICHTIG: Gemini generiert Mono-Audio mit 24kHz
+     */
+    private async audioBufferToMp3(buffer: AudioBuffer): Promise<Blob> {
+        const channels = buffer.numberOfChannels;
+        const sampleRate = buffer.sampleRate;
+        const kbps = 64; // 64kbps ist gut für Sprache
+
+        console.log(`[MP3 Encoder] Start: ${channels} Kanäle, ${sampleRate}Hz, ${buffer.length} Samples`);
+
+        // Hole Audiodaten als Float32
+        const leftChannel = buffer.getChannelData(0);
+
+        // Konvertiere Float32 (-1 bis 1) zu Int16 (-32768 bis 32767)
+        const samples = new Int16Array(leftChannel.length);
+        for (let i = 0; i < leftChannel.length; i++) {
+            samples[i] = Math.max(-32768, Math.min(32767, Math.round(leftChannel[i] * 32767)));
+        }
+
+        // MP3 Encoder - IMMER Mono (1 Kanal) da Gemini Mono liefert
+        const encoder = new Mp3Encoder(1, sampleRate, kbps);
+        const mp3Data: Int8Array[] = [];
+
+        // In Chunks encodieren
+        const blockSize = 1152;
+        for (let i = 0; i < samples.length; i += blockSize) {
+            const chunk = samples.subarray(i, i + blockSize);
+            // Für Mono: nur ein Array übergeben
+            const mp3buf = encoder.encodeBuffer(chunk);
+            if (mp3buf.length > 0) {
+                mp3Data.push(mp3buf);
             }
         }
-        return new Blob([outBuffer], { type: 'audio/wav' });
-    }
 
-    private writeString(view: DataView, offset: number, string: string): void {
-        for (let i = 0; i < string.length; i++) {
-            view.setUint8(offset + i, string.charCodeAt(i));
+        // Finalisieren
+        const mp3End = encoder.flush();
+        if (mp3End.length > 0) {
+            mp3Data.push(mp3End);
         }
+
+        const blob = new Blob(mp3Data, { type: 'audio/mpeg' });
+        console.log(`[MP3 Encoder] Fertig: ${blob.size} bytes`);
+        return blob;
     }
 }

@@ -1,15 +1,16 @@
 
 import React from 'react';
 import { TaskSolution } from '../types';
-import { Compass, Footprints, CheckCircle2, Sparkles, Volume2, VolumeX, ChevronDown } from 'lucide-react';
+import { Compass, Footprints, CheckCircle2, Sparkles, Volume2, VolumeX, ChevronDown, Loader2 } from 'lucide-react';
 
 interface StudentGuideProps {
   solution: TaskSolution;
   isSpeaking: boolean;
   onToggleVoice: () => void;
+  isAudioCached: boolean | null;
 }
 
-export const StudentGuide: React.FC<StudentGuideProps> = ({ solution, isSpeaking, onToggleVoice }) => {
+export const StudentGuide: React.FC<StudentGuideProps> = ({ solution, isSpeaking, onToggleVoice, isAudioCached }) => {
   const [isOpen, setIsOpen] = React.useState(false);
 
   return (
@@ -21,9 +22,16 @@ export const StudentGuide: React.FC<StudentGuideProps> = ({ solution, isSpeaking
         <div className="flex-1 z-10">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-bold text-blue-900 dark:text-blue-300 text-sm">Deine Lehrerin erklärt:</h3>
-            <button onClick={onToggleVoice} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold shadow-sm ${isSpeaking ? 'bg-red-100 text-red-600' : 'bg-blue-600 text-white'}`}>
-              {isSpeaking ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />} {isSpeaking ? 'STOPP' : 'VORLESEN'}
-            </button>
+            <div className="flex items-center gap-2">
+              {isAudioCached !== null && (
+                <span className={`text-[9px] px-2 py-0.5 rounded-full ${isAudioCached ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                  {isAudioCached ? '● Bereit' : '○ Neu'}
+                </span>
+              )}
+              <button onClick={onToggleVoice} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold shadow-sm ${isSpeaking ? 'bg-red-100 text-red-600' : 'bg-blue-600 text-white'}`}>
+                {isSpeaking ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />} {isSpeaking ? 'STOPP' : 'VORLESEN'}
+              </button>
+            </div>
           </div>
           <p className="text-blue-800 dark:text-blue-200/80 text-xs italic leading-relaxed">"Schau mal, wie wir diese Aufgabe heute gemeinsam lösen!"</p>
         </div>

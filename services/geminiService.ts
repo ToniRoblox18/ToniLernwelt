@@ -27,9 +27,13 @@ function getAI() {
 }
 
 let sharedAudioCtx: AudioContext | null = null;
-export function getSharedAudioContext() {
+export function getSharedAudioContext(): AudioContext {
   if (!sharedAudioCtx) {
     sharedAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+  }
+  // Resume falls suspended (nach Browser-Policy)
+  if (sharedAudioCtx.state === 'suspended') {
+    sharedAudioCtx.resume().catch(e => console.warn('[AudioContext] Resume fehlgeschlagen:', e));
   }
   return sharedAudioCtx;
 }

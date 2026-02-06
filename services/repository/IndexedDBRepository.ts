@@ -244,4 +244,17 @@ export class IndexedDBRepository implements ITaskRepository {
             tx.onerror = () => reject(tx.error);
         });
     }
+
+    async clearAllAudio(): Promise<void> {
+        const db = await this.ensureDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(AUDIO_STORE, 'readwrite');
+            tx.objectStore(AUDIO_STORE).clear();
+            tx.oncomplete = () => {
+                console.log('[IndexedDB] Audio Store geleert');
+                resolve();
+            };
+            tx.onerror = () => reject(tx.error);
+        });
+    }
 }

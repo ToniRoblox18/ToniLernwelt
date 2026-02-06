@@ -1,7 +1,8 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { TaskSolution, Language } from '../types';
 import { GeminiAudioService, getSharedAudioContext } from '../services/geminiService';
+import { AudioCacheService } from '../services/audioCache';
 import { StudentGuide } from './StudentGuide';
 import { ParentGuide } from './ParentGuide';
 import { Maximize2, UserRound, Heart, Languages } from 'lucide-react';
@@ -9,7 +10,24 @@ import { Maximize2, UserRound, Heart, Languages } from 'lucide-react';
 export const SolutionView: React.FC<{ solution: TaskSolution; language: Language; onToggleLanguage: () => void; }> = ({ solution, language, onToggleLanguage }) => {
   const [activeTab, setActiveTab] = useState<'student' | 'parent'>('student');
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isAudioCached, setIsAudioCached] = useState<boolean | null>(null);
   const audioSourceRef = useRef<AudioBufferSourceNode | null>(null);
+
+  // Prüfe beim Laden ob Audio gecacht ist
+  useEffect(() => {
+    const checkCache = async () => {
+      try {
+        const ctx = getSharedAudioContext();
+        const cached = await AudioCacheService.get(solution.id, ctx);
+        setIsAudioCached(cached !== null);
+        console.log(`[SolutionView] Audio-Cache für ${solution.id}: ${cached ? 'JA' : 'NEIN'}`);
+      } catch (err) {
+        console.error('[SolutionView] Cache-Check Fehler:', err);
+        setIsAudioCached(false);
+      }
+    };
+    checkCache();
+  }, [solution.id]);
 
   // Resize logic
   const [sidebarWidth, setSidebarWidth] = useState(480);
@@ -57,6 +75,9 @@ export const SolutionView: React.FC<{ solution: TaskSolution; language: Language
       const text = `Lehrerin erklärt: ${solution.teacherSection.learningGoal_de}. Schritte: ${solution.teacherSection.studentSteps_de.join(". ")}. Lösung: ${solution.finalSolution_de}. ${solution.teacherSection.summary_de}`;
       const buffer = await GeminiAudioService.speakText(text, solution.id);
       const ctx = getSharedAudioContext();
+
+      // Audio wurde generiert/geladen → jetzt gecacht
+      setIsAudioCached(true);
 
       // Falls noch was spielt, stoppen
       audioSourceRef.current?.stop();
@@ -110,7 +131,7 @@ export const SolutionView: React.FC<{ solution: TaskSolution; language: Language
 
         <div className="flex-1 p-6 lg:p-8">
           {activeTab === 'student' ? (
-            <StudentGuide solution={solution} isSpeaking={isSpeaking} onToggleVoice={handleVoice} />
+            <StudentGuide solution={solution} isSpeaking={isSpeaking} onToggleVoice={handleVoice} isAudioCached={isAudioCached} />
           ) : (
             <div className="animate-in slide-in-from-left-4 duration-300">
               <div className="flex justify-end mb-6">

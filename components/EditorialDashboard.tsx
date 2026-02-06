@@ -127,6 +127,8 @@ const StatusRow = ({ sol, status, onGenerate, onDelete, isSelected, onToggleSele
           <Badge label="Audio" icon={<CheckCircle2 className="w-4 h-4 text-blue-500" />} text="Bereit" />
         ) : status === 'loading' ? (
           <Badge label="Audio" icon={<Loader2 className="w-4 h-4 animate-spin text-amber-500" />} text="Lädt..." />
+        ) : status === 'checking' ? (
+          <Badge label="Audio" icon={<Loader2 className="w-4 h-4 animate-spin text-slate-400" />} text="Prüfe..." />
         ) : (
           <button onClick={onGenerate} className="flex flex-col items-end gap-1 group">
             <span className="text-[9px] font-bold text-slate-400">Audio</span>

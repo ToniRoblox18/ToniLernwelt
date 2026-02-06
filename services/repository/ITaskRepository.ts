@@ -73,4 +73,5 @@ export interface ITaskRepository {
     saveAudio(key: string, buffer: AudioBuffer): Promise<void>;
     getAudio(key: string, ctx: AudioContext): Promise<AudioBuffer | null>;
     deleteAudio(key: string): Promise<void>;
+    clearAllAudio(): Promise<void>;
 }
