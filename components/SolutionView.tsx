@@ -3,14 +3,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import { TaskSolution, Language } from '../types';
 import { GeminiAudioService, getSharedAudioContext } from '../services/geminiService';
 import { AudioCacheService } from '../services/audioCache';
+import { PDFExportService } from '../services/pdfExportService';
 import { StudentGuide } from './StudentGuide';
 import { ParentGuide } from './ParentGuide';
-import { Maximize2, UserRound, Heart, Languages } from 'lucide-react';
+import { UserRound, Heart, Languages, FileDown, Loader2 } from 'lucide-react';
 
 export const SolutionView: React.FC<{ solution: TaskSolution; language: Language; onToggleLanguage: () => void; }> = ({ solution, language, onToggleLanguage }) => {
-  const [activeTab, setActiveTab] = useState<'student' | 'parent'>('student');
+  const [activeTab, setActiveTab] = useState<'student' | 'parent'>('parent');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isAudioCached, setIsAudioCached] = useState<boolean | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const audioSourceRef = useRef<AudioBufferSourceNode | null>(null);
 
   // Prüfe beim Laden ob Audio gecacht ist
@@ -94,6 +96,19 @@ export const SolutionView: React.FC<{ solution: TaskSolution; language: Language
     }
   };
 
+  const handleExportPDF = async () => {
+    if (isExporting) return;
+
+    setIsExporting(true);
+    try {
+      await PDFExportService.exportToPDF([solution]);
+    } catch (error) {
+      console.error('PDF Export Fehler:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className={`h-full flex flex-col lg:flex-row overflow-hidden animate-in fade-in duration-500 ${isResizing ? 'cursor-col-resize select-none' : ''}`}>
       <div className="flex-1 bg-slate-100 dark:bg-slate-950 p-4 lg:p-8 overflow-y-auto border-r border-slate-200 dark:border-slate-800">
@@ -103,7 +118,14 @@ export const SolutionView: React.FC<{ solution: TaskSolution; language: Language
               <span className="bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-sm">SEITE {solution.pageNumber}</span>
               <h2 className="text-xl font-bold dark:text-white font-display">{solution.taskTitle}</h2>
             </div>
-            <button className="p-2 text-slate-400 hover:text-blue-500 transition-colors"><Maximize2 className="w-5 h-5" /></button>
+            <button
+              onClick={handleExportPDF}
+              disabled={isExporting}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+              PDF-Export
+            </button>
           </div>
           <div className="bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 transition-all">
             <img src={solution.imagePreview} className="w-full rounded-xl object-contain h-auto max-h-[70vh]" alt="Aufgabe" />
@@ -125,8 +147,8 @@ export const SolutionView: React.FC<{ solution: TaskSolution; language: Language
         ref={sidebarRef}
       >
         <div className="flex p-2 bg-slate-50 dark:bg-slate-900 gap-2 sticky top-0 z-20 border-b border-slate-200 dark:border-slate-800 shadow-sm">
-          <TabBtn active={activeTab === 'student'} onClick={() => setActiveTab('student')} icon={<UserRound className="w-4 h-4" />} text="FÜR DICH" />
           <TabBtn active={activeTab === 'parent'} onClick={() => setActiveTab('parent')} icon={<Heart className="w-4 h-4" />} text="ELTERN" color="emerald" />
+          <TabBtn active={activeTab === 'student'} onClick={() => setActiveTab('student')} icon={<UserRound className="w-4 h-4" />} text="FÜR DICH" />
         </div>
 
         <div className="flex-1 p-6 lg:p-8">
@@ -134,11 +156,6 @@ export const SolutionView: React.FC<{ solution: TaskSolution; language: Language
             <StudentGuide solution={solution} isSpeaking={isSpeaking} onToggleVoice={handleVoice} isAudioCached={isAudioCached} />
           ) : (
             <div className="animate-in slide-in-from-left-4 duration-300">
-              <div className="flex justify-end mb-6">
-                <button onClick={onToggleLanguage} className="flex items-center gap-2 text-[10px] font-bold bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 px-4 py-2 rounded-full border border-slate-200 dark:border-slate-700 transition-all shadow-sm">
-                  <Languages className="w-3 h-3 text-blue-600" /> {language === 'de' ? 'TIẾNG VIỆT HIỂN THỊ' : 'DEUTSCH ANZEIGEN'}
-                </button>
-              </div>
               <ParentGuide solution={solution} language={language} />
             </div>
           )}

@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { TaskSolution, AppMode } from '../types';
+import { TaskSolution, AppMode, Language } from '../types';
 import { AudioCacheService } from '../services/audioCache';
 import { getSharedAudioContext } from '../services/geminiService';
 import { TaskModel } from '../model/TaskModel';
 import {
   BookOpen, ChevronRight, FileText, Plus, Moon, Sun,
-  Trash2, Volume2, Settings, ShieldCheck, Filter,
-  SearchX, XCircle, Library
+  Volume2, Settings, ShieldCheck, Filter,
+  SearchX, XCircle, Library, ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { SettingsModal } from './SettingsModal';
 import { TaskItem } from './TaskItem';
@@ -16,24 +16,25 @@ interface SidebarProps {
   solutions: TaskSolution[];
   currentId: string | null;
   darkMode: boolean;
-  isTestMode: boolean;
   mode: AppMode;
   filters: { grade: string | null; subject: string | null };
   onSelect: (id: string) => void;
   onUploadClick: () => void;
   onToggleDarkMode: () => void;
   onToggleMode: () => void;
-  onToggleTestMode: () => void;
-  onClearAll: () => Promise<void>;
+  language: Language;
+  onToggleLanguage: () => void;
   onFilterChange: (filters: { grade: string | null; subject: string | null }) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
-  solutions, currentId, darkMode, isTestMode, mode, filters,
-  onSelect, onUploadClick, onToggleDarkMode, onToggleMode, onToggleTestMode, onClearAll, onFilterChange
+  solutions, currentId, darkMode, mode, filters,
+  onSelect, onUploadClick, onToggleDarkMode, onToggleMode, language, onToggleLanguage, onFilterChange
 }) => {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<'nr' | 'title' | 'grade'>('nr');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const grades = TaskModel.getUniqueGrades();
   const subjects = TaskModel.getUniqueSubjects(filters.grade || undefined);
@@ -118,10 +119,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           )}
 
+          {/* Sort Controls */}
+          {solutions.length > 1 && (
+            <div className="flex items-center gap-1 pb-2">
+              <span className="text-[9px] font-bold text-slate-400 uppercase mr-1">Sort:</span>
+              {([['nr', 'Nr'], ['title', 'Titel'], ['grade', 'Klasse']] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    if (sortBy === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                    else { setSortBy(key); setSortDir('asc'); }
+                  }}
+                  className={`text-[9px] font-bold px-2 py-1 rounded-md transition-all flex items-center gap-0.5 ${sortBy === key
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
+                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  {label}
+                  {sortBy === key && (sortDir === 'asc'
+                    ? <ArrowUp className="w-2.5 h-2.5" />
+                    : <ArrowDown className="w-2.5 h-2.5" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="space-y-1.5 pt-1">
             {solutions.length > 0 ? (
-              solutions.map((task) => (
-                <TaskItem key={task.id} task={task} isActive={currentId === task.id} onSelect={onSelect} mode={mode} />
+              [...solutions].sort((a, b) => {
+                const dir = sortDir === 'asc' ? 1 : -1;
+                switch (sortBy) {
+                  case 'nr': return (a.pageNumber - b.pageNumber) * dir;
+                  case 'title': return a.taskTitle.localeCompare(b.taskTitle, 'de') * dir;
+                  case 'grade': return a.grade.localeCompare(b.grade, 'de') * dir;
+                  default: return 0;
+                }
+              }).map((task, idx) => (
+                <TaskItem key={task.id} task={task} index={idx + 1} isActive={currentId === task.id} onSelect={onSelect} mode={mode} />
               ))
             ) : (
               <div className="py-12 text-center animate-in fade-in zoom-in-95">
@@ -157,10 +192,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         mode={mode}
-        isTestMode={isTestMode}
         onToggleMode={onToggleMode}
-        onToggleTestMode={onToggleTestMode}
-        onClearAll={onClearAll}
+        language={language}
+        onToggleLanguage={onToggleLanguage}
       />
     </>
   );

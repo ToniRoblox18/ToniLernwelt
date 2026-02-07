@@ -5,10 +5,9 @@ import { Upload, FileType, Plus } from 'lucide-react';
 interface UploadZoneProps {
   onFilesSelected: (files: FileList) => void;
   compact?: boolean;
-  isTestMode?: boolean;
 }
 
-export const UploadZone: React.FC<UploadZoneProps> = ({ onFilesSelected, compact, isTestMode }) => {
+export const UploadZone: React.FC<UploadZoneProps> = ({ onFilesSelected, compact }) => {
   const [isDragging, setIsDragging] = useState(false);
   // Counter for robust drag enter/leave handling
   const dragCounter = React.useRef(0);
@@ -67,15 +66,10 @@ export const UploadZone: React.FC<UploadZoneProps> = ({ onFilesSelected, compact
   return (
     <div
       className={`relative group border-4 border-dashed rounded-3xl p-12 text-center transition-all bg-white dark:bg-slate-900 ${isDragging
-        ? (isTestMode ? 'border-amber-500 bg-amber-50/50 dark:bg-amber-900/40 ring-4 ring-amber-500/10' : 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/40 ring-4 ring-blue-500/10')
-        : (isTestMode ? 'border-amber-200 dark:border-amber-900/30' : 'border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-700')
+        ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/40 ring-4 ring-blue-500/10'
+        : 'border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-700'
         }`}
     >
-      {isTestMode && (
-        <div className="absolute top-4 right-4 bg-amber-500 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg z-20 animate-pulse">
-          SIMULATION AKTIV
-        </div>
-      )}
       <input
         type="file"
         multiple
@@ -89,18 +83,16 @@ export const UploadZone: React.FC<UploadZoneProps> = ({ onFilesSelected, compact
       />
       <div className={`flex flex-col items-center gap-4 transition-transform duration-300 pointer-events-none ${isDragging ? 'scale-105' : ''}`}>
         <div className={`p-6 rounded-2xl transition-all duration-300 ${isDragging
-          ? (isTestMode ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'bg-blue-600 text-white shadow-lg shadow-blue-500/30')
-          : (isTestMode ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600' : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 group-hover:scale-110')}`}>
+          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+          : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 group-hover:scale-110'}`}>
           <Upload className="w-12 h-12" />
         </div>
         <div>
           <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2 font-display">
-            {isTestMode ? 'Dateien hierher ziehen (Simulation)' : 'Aufgaben hierher ziehen'}
+            Aufgaben hierher ziehen
           </h3>
           <p className="text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-            {isTestMode
-              ? 'Im Simulations-Modus werden zufällige Aufgaben generiert. Es werden keine echten Daten an Gemini gesendet.'
-              : 'Wählen Sie mehrere Bilder oder PDFs aus dem Arbeitsheft aus. Die KI analysiert sie sofort.'}
+            Wählen Sie mehrere Bilder oder PDFs aus dem Arbeitsheft aus. Die KI analysiert sie sofort.
           </p>
         </div>
         <div className="flex gap-2 mt-4">

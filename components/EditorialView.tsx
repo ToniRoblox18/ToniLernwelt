@@ -1,45 +1,20 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { UploadZone } from './UploadZone';
 import { EditorialDashboard } from './EditorialDashboard';
-import { PlayCircle, ShieldCheck, FileDown, Loader2 } from 'lucide-react';
+import { PlayCircle, ShieldCheck } from 'lucide-react';
 import { TaskSolution } from '../types';
-import { PDFExportService } from '../services/pdfExportService';
 
 interface EditorialViewProps {
   solutions: TaskSolution[];
   onUpload: (files: FileList) => void;
   onDelete: (id: string) => void;
   isBusy: boolean;
-  isTestMode: boolean;
   progress: number;
   onStartStage: () => void;
 }
 
-export const EditorialView: React.FC<EditorialViewProps> = ({ solutions, onUpload, onDelete, isBusy, isTestMode, progress, onStartStage }) => {
-  const [isExporting, setIsExporting] = useState(false);
-  const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
-
-  const handleExport = async (selectedIds: string[]) => {
-    const selectedSolutions = solutions.filter(s => selectedIds.includes(s.id));
-    
-    if (selectedSolutions.length === 0) return;
-    
-    setIsExporting(true);
-    setExportProgress({ current: 0, total: selectedSolutions.length });
-    
-    try {
-      await PDFExportService.exportToPDF(selectedSolutions, (current, total) => {
-        setExportProgress({ current, total });
-      });
-    } catch (error) {
-      console.error('Fehler beim Export:', error);
-    } finally {
-      setIsExporting(false);
-      setExportProgress({ current: 0, total: 0 });
-    }
-  };
-
+export const EditorialView: React.FC<EditorialViewProps> = ({ solutions, onUpload, onDelete, isBusy, progress, onStartStage }) => {
   return (
     <div className="flex-1 overflow-y-auto p-8 bg-slate-50 dark:bg-slate-950/50">
       <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -62,31 +37,26 @@ export const EditorialView: React.FC<EditorialViewProps> = ({ solutions, onUploa
           </button>
         </header>
 
-        <UploadZone onFilesSelected={onUpload} isTestMode={isTestMode} />
+        <UploadZone onFilesSelected={onUpload} />
 
-        {(isBusy || isExporting) && (
+        {isBusy && (
           <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-blue-100 dark:border-blue-900/30 shadow-xl animate-pulse">
             <div className="flex items-center justify-between mb-3">
-              <span className={`text-sm font-bold ${isTestMode ? 'text-amber-500' : 'text-blue-500'}`}>
-                {isExporting ? "Exportiere PDF..." : (isTestMode ? "Simuliere Analyse..." : "KI analysiert Aufgaben...")}
+              <span className="text-sm font-bold text-blue-500">
+                KI analysiert Aufgaben...
               </span>
-              <span className="text-sm font-bold">{Math.round(isExporting ? (exportProgress.current / exportProgress.total) * 100 : progress)}%</span>
+              <span className="text-sm font-bold">{Math.round(progress)}%</span>
             </div>
             <div className="flex-1 h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-blue-600 transition-all duration-500" 
-                style={{ width: `${isExporting ? (exportProgress.current / exportProgress.total) * 100 : progress}%` }} 
+              <div
+                className="h-full bg-blue-600 transition-all duration-500"
+                style={{ width: `${progress}%` }}
               />
             </div>
-            {isExporting && (
-              <div className="mt-2 text-xs text-slate-500 text-center">
-                {exportProgress.current} von {exportProgress.total} Aufgaben exportiert
-              </div>
-            )}
           </div>
         )}
 
-        <EditorialDashboard solutions={solutions} onDelete={onDelete} onExport={handleExport} />
+        <EditorialDashboard solutions={solutions} onDelete={onDelete} />
       </div>
     </div>
   );

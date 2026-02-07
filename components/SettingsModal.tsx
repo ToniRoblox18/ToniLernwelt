@@ -1,23 +1,20 @@
 import React, { useEffect } from 'react';
-import { X, Trash2, ShieldCheck, Settings as SettingsIcon, Database, Cpu } from 'lucide-react';
-import { AppMode } from '../types';
+import { X, Settings as SettingsIcon, Cpu, Languages } from 'lucide-react';
+import { AppMode, Language } from '../types';
 import { DEFAULT_MODEL, AUDIO_MODEL } from '../services/geminiService';
 
 interface SettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
     mode: AppMode;
-    isTestMode: boolean;
     onToggleMode: () => void;
-    onToggleTestMode: () => void;
-    onClearAll: () => Promise<void>;
+    language: Language;
+    onToggleLanguage: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
-    isOpen, onClose, mode, isTestMode, onToggleMode, onToggleTestMode, onClearAll
+    isOpen, onClose, mode, onToggleMode, language, onToggleLanguage
 }) => {
-    const [isDeleting, setIsDeleting] = React.useState(false);
-
     useEffect(() => {
         const handleEsc = (event: KeyboardEvent) => {
             if (event.key === 'Escape') onClose();
@@ -58,7 +55,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                     : 'bg-white border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 hover:border-blue-300'
                                     }`}
                             >
-                                <ShieldCheck className="w-4 h-4 mb-1" />
+                                <SettingsIcon className="w-4 h-4 mb-1" />
                                 <span className="font-bold text-[10px]">Redaktion</span>
                             </button>
                             <button
@@ -68,7 +65,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                     : 'bg-white border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 hover:border-emerald-300'
                                     }`}
                             >
-                                <Database className="w-4 h-4 mb-1" />
+                                <Cpu className="w-4 h-4 mb-1" />
                                 <span className="font-bold text-[10px]">Toni-Modus</span>
                             </button>
                         </div>
@@ -76,30 +73,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                     <div className="h-px bg-slate-100 dark:bg-slate-800" />
 
-                    {/* Verarbeitungs-Modus (Test Mode) */}
+                    {/* Sprache */}
                     <div className="space-y-2">
-                        <h4 className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">KI vs. Simulation</h4>
+                        <h4 className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">Sprache</h4>
                         <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                             <button
-                                onClick={() => { if (isTestMode) onToggleTestMode(); }}
-                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-bold transition-all ${!isTestMode
+                                onClick={() => { if (language !== 'de') onToggleLanguage(); }}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-bold transition-all ${language === 'de'
                                     ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600'
                                     : 'text-slate-500 hover:text-slate-700'}`}
                             >
-                                <ShieldCheck className="w-3 h-3" /> ECHT (Gemini)
+                                <Languages className="w-3 h-3" /> Deutsch
                             </button>
                             <button
-                                onClick={() => { if (!isTestMode) onToggleTestMode(); }}
-                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-bold transition-all ${isTestMode
-                                    ? 'bg-amber-500 shadow-sm text-white'
+                                onClick={() => { if (language !== 'vi') onToggleLanguage(); }}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-bold transition-all ${language === 'vi'
+                                    ? 'bg-white dark:bg-slate-700 shadow-sm text-emerald-600'
                                     : 'text-slate-500 hover:text-slate-700'}`}
                             >
-                                <Cpu className="w-3 h-3" /> TEST (Mock)
+                                <Languages className="w-3 h-3" /> Tiếng Việt
                             </button>
                         </div>
-                        <p className="text-[9px] text-slate-400 italic px-1 text-center">
-                            {isTestMode ? "Simuliert KI-Antworten ohne API-Kosten." : "Verwendet echtes Gemini API Guthaben."}
-                        </p>
                     </div>
 
                     <div className="h-px bg-slate-100 dark:bg-slate-800" />
@@ -115,34 +109,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <span className="text-slate-600 dark:text-slate-300">{audioModel}</span>
                         </div>
                     </div>
-
-                    <div className="h-px bg-slate-100 dark:bg-slate-800" />
-
-                    {/* Danger Zone */}
-                    <button
-                        onClick={async () => {
-                            setIsDeleting(true);
-                            try {
-                                await onClearAll();
-                            } finally {
-                                setIsDeleting(false);
-                            }
-                        }}
-                        disabled={isDeleting}
-                        className={`w-full flex items-center justify-center gap-2 p-2.5 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/50 rounded-xl font-bold text-xs transition-all ${isDeleting ? 'opacity-50 cursor-wait' : 'hover:bg-red-100'}`}
-                    >
-                        {isDeleting ? (
-                            <>
-                                <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
-                                <span>Lösche...</span>
-                            </>
-                        ) : (
-                            <>
-                                <Trash2 className="w-3 h-3" />
-                                <span>{isTestMode ? "Testdaten löschen" : "Alle Daten löschen"}</span>
-                            </>
-                        )}
-                    </button>
                 </div>
             </div>
             {/* Click outside to close (invisible backdrop) */}

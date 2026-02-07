@@ -50,7 +50,6 @@ export interface AppState {
   currentSolutionId: string | null;
   uiLanguage: Language;
   isProcessing: boolean;
-  isTestMode: boolean; // Globaler Test-Modus Status
   progress: number;
   darkMode: boolean;
   mode: AppMode;

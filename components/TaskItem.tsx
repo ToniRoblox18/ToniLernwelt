@@ -6,12 +6,13 @@ import { FileText, Volume2, ChevronRight } from 'lucide-react';
 
 interface TaskItemProps {
     task: TaskSolution;
+    index: number;
     isActive: boolean;
     onSelect: (id: string) => void;
     mode: AppMode;
 }
 
-export const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onSelect, mode }) => {
+export const TaskItem: React.FC<TaskItemProps> = ({ task, index, isActive, onSelect, mode }) => {
     const [isVoiceReady, setIsVoiceReady] = useState(false);
 
     useEffect(() => {
@@ -31,6 +32,9 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, isActive, onSelect, mo
                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                 }`}
         >
+            <div className={`w-6 h-6 flex items-center justify-center rounded-md text-[10px] font-bold tabular-nums shrink-0 ${isActive ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                {index}
+            </div>
             <div className={`p-2 rounded-lg relative ${isActive ? 'bg-blue-500' : 'bg-slate-100 dark:bg-slate-800'}`}>
                 <FileText className="w-4 h-4" />
                 {isVoiceReady && (
